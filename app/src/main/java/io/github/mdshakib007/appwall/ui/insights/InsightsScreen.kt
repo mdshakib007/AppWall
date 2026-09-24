@@ -54,7 +54,12 @@ import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.core.Savings
 import io.github.mdshakib007.appwall.data.AppUsage
 import io.github.mdshakib007.appwall.ui.common.AppIcon
+import io.github.mdshakib007.appwall.ui.common.BigButton
 import io.github.mdshakib007.appwall.ui.common.Format
+import io.github.mdshakib007.appwall.ui.common.IconTile
+import io.github.mdshakib007.appwall.ui.common.Segmented
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.ui.unit.sp
 import io.github.mdshakib007.appwall.ui.common.Permissions
 import io.github.mdshakib007.appwall.ui.common.SectionHeader
 import io.github.mdshakib007.appwall.ui.common.SiteIcon
@@ -116,17 +121,20 @@ fun InsightsScreen(bottomPadding: Dp) {
         )
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = bottomPadding + 24.dp)) {
             // Time saved hero
-            SurfaceCard(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth(), containerColor = MaterialTheme.colorScheme.primary) {
-                Column(Modifier.padding(20.dp)) {
+            SurfaceCard(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth()) {
+                Column(Modifier.padding(18.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("Time you got back", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimary)
+                        IconTile(Icons.Rounded.Schedule, size = 36.dp)
+                        Spacer(Modifier.width(10.dp))
+                        Text("TIME YOU GOT BACK", style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.2.sp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                         Spacer(Modifier.weight(1f))
-                        IconButton(onClick = { explain = true }, Modifier.size(24.dp)) { Icon(Icons.Rounded.Info, "How is this calculated?", tint = MaterialTheme.colorScheme.onPrimary) }
+                        IconButton(onClick = { explain = true }, Modifier.size(24.dp)) { Icon(Icons.Rounded.Info, "How is this calculated?", tint = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
-                    Text(Format.duration(saved, compact = true), style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.height(8.dp))
+                    Text(Format.duration(saved, compact = true), style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     Text(
                         "since you started blocking · $attemptsAll attempts stopped",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }
@@ -136,7 +144,7 @@ fun InsightsScreen(bottomPadding: Dp) {
             }
 
             if (!perms.usage) {
-                SurfaceCard(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth(), containerColor = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                SurfaceCard(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth()) {
                     Column(Modifier.padding(16.dp)) {
                         Text("See your real screen time", style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.height(4.dp))
@@ -145,15 +153,16 @@ fun InsightsScreen(bottomPadding: Dp) {
                             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.height(10.dp))
-                        FilledTonalButton(onClick = { context.startActivity(Permissions.usageIntent()) }) { Text("Allow usage access") }
+                        BigButton("Allow usage access", { context.startActivity(Permissions.usageIntent()) })
                     }
                 }
             } else snapshot?.let { s ->
                 // Screen time today
                 SurfaceCard(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth()) {
                     Column(Modifier.padding(20.dp)) {
-                        Text("Screen time today", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(Format.duration(s.todayMs, compact = true), style = MaterialTheme.typography.displaySmall)
+                        Text("SCREEN TIME TODAY", style = MaterialTheme.typography.labelMedium.copy(letterSpacing = 1.2.sp), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(Format.duration(s.todayMs, compact = true), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
                         val diff = s.todayMs - s.yesterdayMs
                         if (s.yesterdayMs > 0) Text(
                             (if (diff <= 0) "▼ " else "▲ ") + Format.duration(diff, compact = true) + " vs yesterday at this point of the week",
@@ -167,19 +176,7 @@ fun InsightsScreen(bottomPadding: Dp) {
 
                 SectionHeader(
                     "Top apps",
-                    trailing = {
-                        Row(Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape).padding(3.dp)) {
-                            listOf("Today", "7 days").forEachIndexed { i, t ->
-                                val sel = range == i
-                                Box(
-                                    Modifier.background(if (sel) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent, CircleShape)
-                                        .clickable { range = i }.padding(horizontal = 12.dp, vertical = 5.dp),
-                                ) {
-                                    Text(t, style = MaterialTheme.typography.labelMedium, color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
-                                }
-                            }
-                        }
-                    },
+                    trailing = { Segmented(listOf("Today", "7 days"), range, { range = it }, Modifier.width(160.dp)) },
                 )
                 val list = if (range == 0) s.topToday else s.topWeek
                 val max = list.maxOfOrNull { it.totalMs } ?: 1L
@@ -198,7 +195,7 @@ fun InsightsScreen(bottomPadding: Dp) {
                             LinearProgressIndicator(
                                 progress = { a.totalMs.toFloat() / max }, modifier = Modifier.fillMaxWidth().height(6.dp),
                                 color = if (blocked) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary,
-                                trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                trackColor = MaterialTheme.colorScheme.surfaceContainerHigh, strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
                             )
                         }
                     }
@@ -222,7 +219,7 @@ fun InsightsScreen(bottomPadding: Dp) {
                                 Text(Format.duration(ms, compact = true), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                             Spacer(Modifier.height(6.dp))
-                            LinearProgressIndicator(progress = { ms.toFloat() / max }, modifier = Modifier.fillMaxWidth().height(6.dp), trackColor = MaterialTheme.colorScheme.surfaceContainerHigh)
+                            LinearProgressIndicator(progress = { ms.toFloat() / max }, modifier = Modifier.fillMaxWidth().height(6.dp), trackColor = MaterialTheme.colorScheme.surfaceContainerHigh, strokeCap = androidx.compose.ui.graphics.StrokeCap.Round)
                         }
                     }
                 }

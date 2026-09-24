@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Language
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,21 +49,13 @@ fun AppIcon(packageName: String, size: Dp = 44.dp, modifier: Modifier = Modifier
         if (b != null) {
             Image(bitmap = b, contentDescription = null, modifier = Modifier.size(size))
         } else {
-            Box(Modifier.size(size).background(MaterialTheme.colorScheme.surfaceVariant, CircleShape))
+            Box(Modifier.size(size).background(MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape))
         }
     }
 }
 
-/** Globe badge for websites. */
+/** Orange globe on a pale rounded-square tile, for websites. */
 @Composable
 fun SiteIcon(size: Dp = 44.dp, modifier: Modifier = Modifier) {
-    Box(
-        modifier.size(size).background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            Icons.Rounded.Language, contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(size * 0.55f),
-        )
-    }
+    IconTile(Icons.Rounded.Language, modifier, size)
 }

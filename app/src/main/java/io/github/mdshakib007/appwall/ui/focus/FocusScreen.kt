@@ -58,6 +58,7 @@ import io.github.mdshakib007.appwall.core.BlockRules
 import io.github.mdshakib007.appwall.data.db.BlockType
 import io.github.mdshakib007.appwall.data.db.FocusSession
 import io.github.mdshakib007.appwall.ui.common.BigButton
+import io.github.mdshakib007.appwall.ui.common.ChoiceChip
 import io.github.mdshakib007.appwall.ui.common.Format
 import io.github.mdshakib007.appwall.ui.common.SectionHeader
 import io.github.mdshakib007.appwall.ui.common.StatTile
@@ -128,13 +129,7 @@ private fun StartFocus(itemCount: Int, now: Long) {
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(3, 7, 14, 21, 30, 60, 90, 180, 365).forEach { d ->
-                val sel = days == d
-                Box(
-                    Modifier.background(if (sel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
-                        .clickable { days = d }.padding(horizontal = 14.dp, vertical = 8.dp),
-                ) {
-                    Text("${d}d", style = MaterialTheme.typography.labelLarge, color = if (sel) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface)
-                }
+                ChoiceChip("${d}d", days == d, { days = d })
             }
         }
         Spacer(Modifier.height(20.dp))
@@ -186,7 +181,7 @@ private fun ActiveFocus(session: FocusSession, now: Long, itemCount: Int, onAdd:
     val daysLeft = ((msLeft + 24L * 3600_000 - 1) / (24L * 3600_000)).toInt() // rounds up: a fresh 3-day lock reads "3 days"
     val hoursLeft = ((msLeft % (24L * 3600_000)) / 3600_000).toInt()
     val primary = MaterialTheme.colorScheme.primary
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
+    val track = MaterialTheme.colorScheme.surfaceContainerHigh
 
     Column(Modifier.padding(horizontal = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(Modifier.size(220.dp).padding(top = 8.dp), contentAlignment = Alignment.Center) {
@@ -218,9 +213,7 @@ private fun ActiveFocus(session: FocusSession, now: Long, itemCount: Int, onAdd:
             StatTile("${session.days}", "days committed", Modifier.weight(1f), accent = true)
         }
         Spacer(Modifier.height(20.dp))
-        FilledTonalButton(onClick = onAdd, modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Rounded.Add, null); Spacer(Modifier.width(8.dp)); Text("Add more blocks")
-        }
+        BigButton("Add more blocks", onAdd, icon = Icons.Rounded.Add)
         Spacer(Modifier.height(12.dp))
         Text(
             "Tip: AppWall keeps you out of its own Settings pages while Focus Mode is on, so there's no quick escape hatch.",

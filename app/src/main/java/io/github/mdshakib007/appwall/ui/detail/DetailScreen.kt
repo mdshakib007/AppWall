@@ -3,6 +3,7 @@
 package io.github.mdshakib007.appwall.ui.detail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -62,7 +63,9 @@ import io.github.mdshakib007.appwall.data.db.BlockItem
 import io.github.mdshakib007.appwall.data.db.BlockType
 import io.github.mdshakib007.appwall.ui.common.AppIcon
 import io.github.mdshakib007.appwall.ui.common.BigButton
+import io.github.mdshakib007.appwall.ui.common.ChoiceChip
 import io.github.mdshakib007.appwall.ui.common.Format
+import io.github.mdshakib007.appwall.ui.common.IconTile
 import io.github.mdshakib007.appwall.ui.common.Pill
 import io.github.mdshakib007.appwall.ui.common.PillTone
 import io.github.mdshakib007.appwall.ui.common.SiteIcon
@@ -169,11 +172,15 @@ fun DetailScreen(id: Long, onBack: () -> Unit) {
             }
 
             if (locked) {
-                SurfaceCard(Modifier.fillMaxWidth().padding(vertical = 8.dp), containerColor = MaterialTheme.colorScheme.primaryContainer) {
-                    Text(
-                        "Focus Mode is on until ${Format.dateTime(state.focus!!.endAt)}. Schedules can't be changed and nothing can be removed until then.",
-                        Modifier.padding(16.dp), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
+                SurfaceCard(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                        IconTile(Icons.Rounded.Lock, size = 36.dp)
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            "Focus Mode is on until ${Format.dateTime(state.focus!!.endAt)}. Schedules can't be changed and nothing can be removed until then.",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
 
@@ -231,7 +238,8 @@ fun DetailScreen(id: Long, onBack: () -> Unit) {
                     val on = daysMask and bit != 0
                     Box(
                         Modifier.weight(1f).height(40.dp)
-                            .background(if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh, CircleShape)
+                            .background(if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerLowest, CircleShape)
+                            .border(1.dp, if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, CircleShape)
                             .clickable(enabled = !locked) { daysMask = daysMask xor bit },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -306,18 +314,14 @@ private fun initialChoice(item: BlockItem, now: Long): Int = if (item.untilAt ==
 
 @Composable
 private fun Chip(text: String, selected: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val bg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
-    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-    Box(
-        Modifier.background(bg.copy(alpha = if (enabled) 1f else 0.5f), CircleShape).clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
-    ) { Text(text, style = MaterialTheme.typography.labelLarge, color = fg) }
+    ChoiceChip(text, selected, onClick, enabled = enabled)
 }
 
 @Composable
 private fun TimeBox(text: String, modifier: Modifier, enabled: Boolean, onClick: () -> Unit) {
     Box(
-        modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.shapes.medium)
+        modifier.background(MaterialTheme.colorScheme.surfaceContainerLowest, MaterialTheme.shapes.medium)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
             .clickable(enabled = enabled, onClick = onClick).padding(vertical = 14.dp),
         contentAlignment = Alignment.Center,
     ) { Text(text, style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center) }

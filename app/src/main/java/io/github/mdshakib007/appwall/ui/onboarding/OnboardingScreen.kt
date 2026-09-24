@@ -62,6 +62,9 @@ import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.R
 import io.github.mdshakib007.appwall.service.DnsFilterVpnService
 import io.github.mdshakib007.appwall.ui.common.BigButton
+import io.github.mdshakib007.appwall.ui.common.IconTile
+import io.github.mdshakib007.appwall.ui.common.SmallButton
+import androidx.compose.ui.text.font.FontWeight
 import io.github.mdshakib007.appwall.ui.common.Permissions
 import io.github.mdshakib007.appwall.ui.common.SurfaceCard
 import io.github.mdshakib007.appwall.ui.common.rememberPermissionStatus
@@ -114,9 +117,10 @@ private fun StoryPages(onContinue: () -> Unit) {
                 Text(p.body, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (i == 2) {
                     Spacer(Modifier.height(16.dp))
-                    FilledTonalButton(onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL))) }) {
-                        Text("View source on GitHub")
-                    }
+                    FilledTonalButton(
+                        onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL))) }, shape = MaterialTheme.shapes.medium,
+                        colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh, contentColor = MaterialTheme.colorScheme.onSurface),
+                    ) { Text("View source on GitHub", fontWeight = FontWeight.SemiBold) }
                 }
                 Spacer(Modifier.weight(1.3f))
             }
@@ -214,18 +218,9 @@ fun PermissionsStep(onDone: () -> Unit, standalone: Boolean = false) {
 
 @Composable
 private fun PermissionCard(icon: ImageVector, title: String, required: Boolean, granted: Boolean, body: String, action: () -> Unit) {
-    SurfaceCard(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        containerColor = if (granted) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHigh,
-        onClick = { if (!granted) action() },
-    ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier.size(44.dp).background(if (granted) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.primaryContainer, CircleShape),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, null, tint = if (granted) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onPrimaryContainer)
-            }
+    SurfaceCard(Modifier.fillMaxWidth().padding(vertical = 5.dp), onClick = { if (!granted) action() }) {
+        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconTile(icon, size = 40.dp, muted = granted)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -242,7 +237,7 @@ private fun PermissionCard(icon: ImageVector, title: String, required: Boolean, 
             if (granted) {
                 Icon(Icons.Rounded.CheckCircle, "Granted", tint = io.github.mdshakib007.appwall.ui.theme.AppWallColors.success)
             } else {
-                FilledTonalButton(onClick = action) { Text("Allow") }
+                SmallButton("Allow", action)
             }
         }
     }

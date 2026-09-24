@@ -13,7 +13,10 @@ import androidx.compose.material.icons.outlined.TrackChanges
 import androidx.compose.material.icons.rounded.Insights
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.TrackChanges
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -127,7 +130,9 @@ fun AppRoot(onboardingDone: Boolean) {
 
 @Composable
 private fun BottomBar(nav: NavHostController, currentRoute: String?) {
-    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer, tonalElevation = 0.dp) {
+    Column {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLowest, tonalElevation = 0.dp) {
         tabs.forEach { tab ->
             val selected = currentRoute == tab.route
             NavigationBarItem(
@@ -142,10 +147,14 @@ private fun BottomBar(nav: NavHostController, currentRoute: String?) {
                 icon = { Icon(if (selected) tab.selectedIcon else tab.icon, contentDescription = tab.label) },
                 label = { Text(tab.label) },
                 colors = NavigationBarItemDefaults.colors(
-                    indicatorColor = MaterialTheme.colorScheme.primaryContainer,
-                    selectedIconColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    indicatorColor = Color.Transparent,
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
                 ),
             )
+        }
         }
     }
 }

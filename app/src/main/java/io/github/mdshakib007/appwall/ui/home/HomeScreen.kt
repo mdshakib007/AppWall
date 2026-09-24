@@ -20,7 +20,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.border
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Apps
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Settings
@@ -56,6 +60,8 @@ import io.github.mdshakib007.appwall.data.db.BlockItem
 import io.github.mdshakib007.appwall.data.db.BlockType
 import io.github.mdshakib007.appwall.ui.common.AppIcon
 import io.github.mdshakib007.appwall.ui.common.Format
+import io.github.mdshakib007.appwall.ui.common.IconTile
+import io.github.mdshakib007.appwall.ui.common.SmallButton
 import io.github.mdshakib007.appwall.ui.common.Permissions
 import io.github.mdshakib007.appwall.ui.common.Pill
 import io.github.mdshakib007.appwall.ui.common.PillTone
@@ -150,29 +156,23 @@ fun HomeScreen(
             // Focus banner
             state.focus?.takeIf { BlockRules.isFocusActive(it, now) }?.let { focus ->
                 item {
-                    SurfaceCard(
-                        Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth(),
-                        containerColor = MaterialTheme.colorScheme.primary,
-                        onClick = onOpenFocus,
-                    ) {
-                        Column(Modifier.padding(18.dp)) {
+                    SurfaceCard(Modifier.padding(horizontal = 20.dp, vertical = 6.dp).fillMaxWidth(), onClick = onOpenFocus) {
+                        Column(Modifier.padding(16.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Rounded.Lock, null, tint = MaterialTheme.colorScheme.onPrimary)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Focus Mode", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimary)
-                                Spacer(Modifier.weight(1f))
-                                Text(Format.focusRemaining(focus, now), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimary)
+                                IconTile(Icons.Rounded.Lock, size = 40.dp)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text("Focus Mode", style = MaterialTheme.typography.titleMedium)
+                                    Text("Locked until ${Format.dateTime(focus.endAt)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Pill(Format.focusRemaining(focus, now), tone = PillTone.PRIMARY)
                             }
                             Spacer(Modifier.height(12.dp))
                             val progress = ((now - focus.startAt).toFloat() / (focus.endAt - focus.startAt)).coerceIn(0f, 1f)
                             LinearProgressIndicator(
                                 progress = { progress }, modifier = Modifier.fillMaxWidth().height(6.dp),
-                                color = MaterialTheme.colorScheme.onPrimary, trackColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.3f),
-                            )
-                            Spacer(Modifier.height(8.dp))
-                            Text(
-                                "Everything on your list is locked until ${Format.dateTime(focus.endAt)}.",
-                                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.85f),
+                                color = MaterialTheme.colorScheme.primary, trackColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round,
                             )
                         }
                     }
@@ -182,8 +182,8 @@ fun HomeScreen(
             // Stats strip
             item {
                 Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile("$attemptsToday", "blocked today", Modifier.weight(1f))
-                    StatTile(Format.duration(saved, compact = true), "time you got back", Modifier.weight(1f), accent = true)
+                    StatTile("$attemptsToday", "blocked today", Modifier.weight(1f), icon = Icons.Rounded.Shield)
+                    StatTile(Format.duration(saved, compact = true), "time you got back", Modifier.weight(1f), accent = true, icon = Icons.Rounded.Schedule)
                 }
             }
 
@@ -246,7 +246,7 @@ private fun WarningCard(title: String, body: String, action: String, onClick: ()
                 Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.85f))
             }
             Spacer(Modifier.width(8.dp))
-            Pill(action, tone = PillTone.ERROR)
+            SmallButton(action, onClick)
         }
     }
 }
@@ -268,8 +268,8 @@ private fun EmptyState(onAdd: (Int) -> Unit) {
         )
         Spacer(Modifier.height(20.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            QuickChoice("Websites", Icons.Rounded.Shield) { onAdd(0) }
-            QuickChoice("Apps", Icons.Rounded.Add) { onAdd(1) }
+            QuickChoice("Websites", Icons.Rounded.Language) { onAdd(0) }
+            QuickChoice("Apps", Icons.Rounded.Apps) { onAdd(1) }
         }
     }
 }
@@ -277,12 +277,13 @@ private fun EmptyState(onAdd: (Int) -> Unit) {
 @Composable
 private fun QuickChoice(text: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Row(
-        Modifier.background(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.shapes.large).clickable(onClick = onClick)
-            .padding(horizontal = 18.dp, vertical = 12.dp),
+        Modifier.background(MaterialTheme.colorScheme.surfaceContainerLowest, MaterialTheme.shapes.medium)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium)
+            .clickable(onClick = onClick).padding(horizontal = 18.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+        Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(8.dp))
-        Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onPrimaryContainer)
+        Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface)
     }
 }

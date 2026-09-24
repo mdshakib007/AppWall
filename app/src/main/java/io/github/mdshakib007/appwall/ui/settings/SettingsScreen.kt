@@ -59,6 +59,7 @@ import io.github.mdshakib007.appwall.ui.common.Permissions
 import io.github.mdshakib007.appwall.ui.common.Pill
 import io.github.mdshakib007.appwall.ui.common.PillTone
 import io.github.mdshakib007.appwall.ui.common.SectionHeader
+import io.github.mdshakib007.appwall.ui.common.Segmented
 import io.github.mdshakib007.appwall.ui.common.SurfaceCard
 import io.github.mdshakib007.appwall.ui.common.rememberPermissionStatus
 import io.github.mdshakib007.appwall.ui.onboarding.GITHUB_URL
@@ -93,14 +94,12 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onPrivacy: () -> Uni
     ) { inner ->
         Column(Modifier.fillMaxSize().padding(inner).verticalScroll(rememberScrollState()).padding(bottom = 32.dp)) {
             SectionHeader("Appearance")
-            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(horizontal = 20.dp)) {
-                ThemeMode.entries.forEachIndexed { i, m ->
-                    SegmentedButton(
-                        selected = theme == m, onClick = { scope.launch { Graph.prefs.setThemeMode(m) } },
-                        shape = SegmentedButtonDefaults.itemShape(i, ThemeMode.entries.size),
-                    ) { Text(m.name.lowercase().replaceFirstChar { it.uppercase() }) }
-                }
-            }
+            Segmented(
+                listOf("Light", "Dark", "System"),
+                selected = when (theme) { ThemeMode.LIGHT -> 0; ThemeMode.DARK -> 1; ThemeMode.SYSTEM -> 2 },
+                onSelect = { i -> scope.launch { Graph.prefs.setThemeMode(listOf(ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM)[i]) } },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+            )
 
             SectionHeader("Protection")
             PermRow("Accessibility service", "Required for all blocking", perms.accessibility) { context.startActivity(Permissions.accessibilityIntent()) }
@@ -218,7 +217,10 @@ fun AboutScreen(onBack: () -> Unit, onPrivacy: () -> Unit) {
             Spacer(Modifier.height(24.dp))
             BigButton("Source code on GitHub", { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(GITHUB_URL))) }, icon = Icons.Rounded.OpenInNew)
             Spacer(Modifier.height(10.dp))
-            FilledTonalButton(onClick = onPrivacy, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("How your privacy is protected") }
+            FilledTonalButton(
+                onClick = onPrivacy, modifier = Modifier.fillMaxWidth().height(50.dp), shape = MaterialTheme.shapes.medium,
+                colors = androidx.compose.material3.ButtonDefaults.filledTonalButtonColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh, contentColor = MaterialTheme.colorScheme.onSurface),
+            ) { Text("How your privacy is protected", fontWeight = FontWeight.SemiBold) }
             Spacer(Modifier.height(28.dp))
             Text("Contribute", style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(6.dp))

@@ -4,6 +4,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,27 +63,20 @@ fun BlockedScreen(
 ) {
     val now = System.currentTimeMillis()
     val focusActive = BlockRules.isFocusActive(focus, now)
-    val dark = LocalIsDark.current
-    val bg = Brush.verticalGradient(
-        listOf(
-            if (dark) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f) else MaterialTheme.colorScheme.primaryContainer,
-            MaterialTheme.colorScheme.background,
-        ),
-    )
+    val glow = Brush.radialGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f), androidx.compose.ui.graphics.Color.Transparent))
     var appeared by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { appeared = true }
     val scale by animateFloatAsState(if (appeared) 1f else 0.7f, tween(450), label = "pop")
 
-    Box(Modifier.fillMaxSize().background(bg)) {
+    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(
             Modifier.fillMaxSize().safeDrawingPadding().padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.weight(1f))
-            Image(
-                painterResource(R.drawable.logo), contentDescription = null,
-                modifier = Modifier.size(140.dp).scale(scale),
-            )
+            Box(Modifier.size(220.dp).background(glow, CircleShape), contentAlignment = Alignment.Center) {
+                Image(painterResource(R.drawable.logo), contentDescription = null, modifier = Modifier.size(130.dp).scale(scale))
+            }
             Spacer(Modifier.height(28.dp))
             Text(
                 if (protectedMode) "Protected by Focus Mode" else "Blocked by AppWall",
@@ -102,7 +96,8 @@ fun BlockedScreen(
 
             if (item != null) {
                 Row(
-                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.shapes.large).padding(16.dp),
+                    Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.surfaceContainerLowest, MaterialTheme.shapes.medium)
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, MaterialTheme.shapes.medium).padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (item.type == BlockType.APP) AppIcon(item.key, 48.dp) else SiteIcon(48.dp)

@@ -20,7 +20,7 @@ Everything requested is buildable on stock Android with **zero network calls fro
 
 ## 1. Architecture (decided)
 
-- **Language/UI:** Kotlin, Jetpack Compose, Material 3, orange seed color, light + dark (follows system, overridable).
+- **Language/UI:** Kotlin, Jetpack Compose, Material 3. Design tokens mirror the owner's Vision Telematics mobile app: Tailwind slate neutrals (light `#f8fafc` page / white cards / `#0f172a` text; dark `#020617` page / `#0f172a` cards / `#f1f5f9` text), hairline `slate-200`/`slate-800` borders, 12dp cards & buttons, 8dp icon tiles on `orange-50`, brand orange `#f97316` used only for icons, primary buttons, selection and progress. Never a tinted page background.
 - **Package:** `io.github.mdshakib007.appwall` · minSdk 29 (Android 10; required by the DnsResolver API that lets the DNS filter work without INTERNET permission) · target/compileSdk 36.
 - **Storage:** Room (blocklist, schedules, usage events, focus session). DataStore for settings. Everything on-device; uninstall = gone.
 - **App blocking:** `AccessibilityService` watches foreground package → if blocked & active now → launch full-screen `BlockedActivity` (exempt from background-launch limits via "Display over other apps").
@@ -98,6 +98,9 @@ Everything requested is buildable on stock Android with **zero network calls fro
 - 2026-09-24 · DNS-only VPN over full-traffic VPN: tiny, no battery cost, no traffic inspection = matches "no spy" promise.
 - 2026-09-24 · Block screen is an Activity (needs "Display over other apps"), not an accessibility overlay: proper theming, back-handling, animations.
 - 2026-09-24 · No chart / image libraries; everything drawn with Compose to keep APK small.
+
+- 2026-09-24 · **UI restyle.** First pass used M3 tonal (peach-tinted) surfaces; owner rejected it as dated. Replaced with the neutral+orange system above, copied from `vision-telematics-platform/mobile/src/theme/scheme.ts` and `tailwind.config.js`. Shared pieces live in `ui/common/Components.kt` (`SurfaceCard`, `IconTile`, `ChoiceChip`, `Segmented`, `SmallButton`, `StatTile`).
+- 2026-09-24 · `MainActivity.onResume` re-starts the DNS filter if the process was killed (force-stop / task kill), since the boot receiver alone left it down until reboot.
 
 ## 5. Status (2026-09-24)
 v1 feature-complete and verified on the API 37 emulator. Remaining before a public release:

@@ -71,6 +71,8 @@ import io.github.mdshakib007.appwall.data.Catalog
 import io.github.mdshakib007.appwall.data.InstalledApp
 import io.github.mdshakib007.appwall.data.db.BlockType
 import io.github.mdshakib007.appwall.ui.common.AppIcon
+import io.github.mdshakib007.appwall.ui.common.BigButton
+import io.github.mdshakib007.appwall.ui.common.ChoiceChip
 import io.github.mdshakib007.appwall.ui.common.Pill
 import io.github.mdshakib007.appwall.ui.common.PillTone
 import io.github.mdshakib007.appwall.ui.common.SectionHeader
@@ -174,9 +176,7 @@ private fun WebsitesTab(snackbar: SnackbarHostState) {
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.primary),
                 )
                 AnimatedVisibility(input.isNotBlank()) {
-                    FilledTonalButton(onClick = { add(input) }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-                        Icon(Icons.Rounded.Check, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Block ${Domains.normalize(input) ?: input.trim()}")
-                    }
+                    BigButton("Block ${Domains.normalize(input) ?: input.trim()}", { add(input) }, Modifier.padding(top = 6.dp), icon = Icons.Rounded.Check)
                 }
             }
         }
@@ -199,15 +199,7 @@ private fun WebsitesTab(snackbar: SnackbarHostState) {
 
 @Composable
 private fun SuggestionChip(text: String, selected: Boolean, onClick: () -> Unit) {
-    val bg = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHigh
-    val fg = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-    Row(
-        Modifier.background(bg, CircleShape).clickable(onClick = onClick).padding(horizontal = 14.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (selected) { Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = fg); Spacer(Modifier.width(6.dp)) }
-        Text(text, style = MaterialTheme.typography.labelLarge, color = fg)
-    }
+    ChoiceChip(text, selected, onClick, leading = if (selected) ({ Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onPrimary) }) else null)
 }
 
 @Composable
