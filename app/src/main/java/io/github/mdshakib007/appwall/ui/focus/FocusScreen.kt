@@ -35,8 +35,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import io.github.mdshakib007.appwall.ui.Emphasized
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -176,7 +181,11 @@ private fun StartFocus(itemCount: Int, now: Long) {
 
 @Composable
 private fun ActiveFocus(session: FocusSession, now: Long, itemCount: Int, onAdd: () -> Unit) {
-    val progress = ((now - session.startAt).toFloat() / (session.endAt - session.startAt)).coerceIn(0f, 1f)
+    val target = ((now - session.startAt).toFloat() / (session.endAt - session.startAt)).coerceIn(0f, 1f)
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val progress by animateFloatAsState(if (shown) target else 0f, tween(900, easing = Emphasized), label = "ring")
+    val pop by animateFloatAsState(if (shown) 1f else 0.6f, tween(600, easing = Emphasized), label = "pop")
     val msLeft = (session.endAt - now).coerceAtLeast(0)
     val daysLeft = ((msLeft + 24L * 3600_000 - 1) / (24L * 3600_000)).toInt() // rounds up: a fresh 3-day lock reads "3 days"
     val hoursLeft = ((msLeft % (24L * 3600_000)) / 3600_000).toInt()
@@ -191,7 +200,7 @@ private fun ActiveFocus(session: FocusSession, now: Long, itemCount: Int, onAdd:
                 drawArc(track, -90f, 360f, false, Offset(inset, inset), Size(size.width - stroke, size.height - stroke), style = Stroke(stroke, cap = StrokeCap.Round))
                 drawArc(primary, -90f, 360f * progress, false, Offset(inset, inset), Size(size.width - stroke, size.height - stroke), style = Stroke(stroke, cap = StrokeCap.Round))
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.graphicsLayer { scaleX = pop; scaleY = pop; alpha = pop }) {
                 if (msLeft >= 24L * 3600_000) {
                     Text("$daysLeft", style = MaterialTheme.typography.displayLarge, color = primary)
                     Text(if (daysLeft == 1) "day left" else "days left", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

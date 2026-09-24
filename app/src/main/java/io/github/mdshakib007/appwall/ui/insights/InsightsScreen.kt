@@ -32,6 +32,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import io.github.mdshakib007.appwall.ui.Emphasized
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -253,13 +256,16 @@ private fun WeekChart(daily: List<Pair<LocalDate, Long>>, modifier: Modifier) {
     val track = MaterialTheme.colorScheme.surfaceContainerHigh
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val max = (daily.maxOfOrNull { it.second } ?: 1L).coerceAtLeast(1L)
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(daily) { shown = true }
+    val grow by animateFloatAsState(if (shown) 1f else 0f, tween(800, easing = Emphasized), label = "bars")
     Column(modifier) {
         Canvas(Modifier.fillMaxWidth().weight(1f)) {
             val n = daily.size.coerceAtLeast(1)
             val slot = size.width / n
             val barW = slot * 0.55f
             daily.forEachIndexed { i, (_, ms) ->
-                val h = (ms.toFloat() / max) * size.height
+                val h = (ms.toFloat() / max) * size.height * grow
                 val x = i * slot + (slot - barW) / 2
                 drawRoundRect(track, Offset(x, 0f), Size(barW, size.height), CornerRadius(barW / 2))
                 if (h > 0) drawRoundRect(if (i == n - 1) primary else primary.copy(alpha = 0.55f), Offset(x, size.height - h), Size(barW, h), CornerRadius(barW / 2))

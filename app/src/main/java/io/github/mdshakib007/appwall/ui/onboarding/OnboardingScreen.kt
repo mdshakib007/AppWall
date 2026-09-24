@@ -8,10 +8,18 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
+import io.github.mdshakib007.appwall.ui.Emphasized
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -77,7 +85,14 @@ private class Page(val title: String, val body: String, val art: @Composable (Mo
 @Composable
 fun OnboardingScreen(onDone: () -> Unit) {
     var step by remember { mutableStateOf(0) } // 0 = story pages, 1 = permissions
-    AnimatedContent(step, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "onboarding") { s ->
+    AnimatedContent(
+        step,
+        transitionSpec = {
+            (slideInHorizontally(tween(380, easing = Emphasized)) { it } + fadeIn(tween(240))) togetherWith
+                (slideOutHorizontally(tween(380, easing = Emphasized)) { -it / 3 } + fadeOut(tween(240)))
+        },
+        label = "onboarding",
+    ) { s ->
         if (s == 0) StoryPages(onContinue = { step = 1 }) else PermissionsStep(onDone = onDone)
     }
 }
@@ -105,14 +120,26 @@ private fun StoryPages(onContinue: () -> Unit) {
         }
         HorizontalPager(pager, Modifier.weight(1f)) { i ->
             val p = pages[i]
+            // Distance of this page from the viewport centre, in pages: 0 = centred, ±1 = fully off-screen.
+            val offset = (pager.currentPage - i) + pager.currentPageOffsetFraction
             Column(
                 Modifier.fillMaxSize().padding(horizontal = 32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Spacer(Modifier.weight(1f))
-                p.art(Modifier.size(240.dp))
+                p.art(
+                    Modifier.size(240.dp).graphicsLayer {
+                        val d = kotlin.math.abs(offset).coerceIn(0f, 1f)
+                        translationX = offset * size.width * 0.35f   // parallax: art moves slower than the page
+                        scaleX = 1f - 0.12f * d; scaleY = 1f - 0.12f * d
+                        alpha = 1f - 0.5f * d
+                    },
+                )
                 Spacer(Modifier.height(40.dp))
-                Text(p.title, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center)
+                Text(
+                    p.title, style = MaterialTheme.typography.headlineLarge, textAlign = TextAlign.Center,
+                    modifier = Modifier.graphicsLayer { alpha = 1f - 0.7f * kotlin.math.abs(offset).coerceIn(0f, 1f) },
+                )
                 Spacer(Modifier.height(14.dp))
                 Text(p.body, style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 if (i == 2) {
@@ -219,7 +246,7 @@ fun PermissionsStep(onDone: () -> Unit, standalone: Boolean = false) {
 @Composable
 private fun PermissionCard(icon: ImageVector, title: String, required: Boolean, granted: Boolean, body: String, action: () -> Unit) {
     SurfaceCard(Modifier.fillMaxWidth().padding(vertical = 5.dp), onClick = { if (!granted) action() }) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(14.dp).animateContentSize(), verticalAlignment = Alignment.CenterVertically) {
             IconTile(icon, size = 40.dp, muted = granted)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
@@ -234,10 +261,13 @@ private fun PermissionCard(icon: ImageVector, title: String, required: Boolean, 
                 Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.width(10.dp))
-            if (granted) {
-                Icon(Icons.Rounded.CheckCircle, "Granted", tint = io.github.mdshakib007.appwall.ui.theme.AppWallColors.success)
-            } else {
-                SmallButton("Allow", action)
+            AnimatedContent(
+                granted,
+                transitionSpec = { (scaleIn(tween(320, easing = Emphasized), initialScale = 0.4f) + fadeIn(tween(200))) togetherWith fadeOut(tween(120)) },
+                label = "grant",
+            ) { ok ->
+                if (ok) Icon(Icons.Rounded.CheckCircle, "Granted", tint = io.github.mdshakib007.appwall.ui.theme.AppWallColors.success)
+                else SmallButton("Allow", action)
             }
         }
     }

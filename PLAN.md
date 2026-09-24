@@ -102,6 +102,9 @@ Everything requested is buildable on stock Android with **zero network calls fro
 - 2026-09-24 · **UI restyle.** First pass used M3 tonal (peach-tinted) surfaces; owner rejected it as dated. Replaced with the neutral+orange system above, copied from `vision-telematics-platform/mobile/src/theme/scheme.ts` and `tailwind.config.js`. Shared pieces live in `ui/common/Components.kt` (`SurfaceCard`, `IconTile`, `ChoiceChip`, `Segmented`, `SmallButton`, `StatTile`).
 - 2026-09-24 · `MainActivity.onResume` re-starts the DNS filter if the process was killed (force-stop / task kill), since the boot receiver alone left it down until reboot.
 
+- 2026-09-24 · **Add page stages selections.** Suggested sites/apps only mark a pending selection; a confirm bar ("Block N items") applies them. Prevents accidental one-tap blocks that Focus Mode would make irreversible. Typed domains still block immediately (deliberate act). Already-blocked items are locked on that page and managed from the list.
+- 2026-09-24 · **Motion.** Push/pop slide with Material emphasized easing, fade-through between tabs, slide-up from onboarding, parallax on onboarding art, animated chip/permission states, list item placement, focus ring and insight bars grow in. `Emphasized` easing lives in `ui/AppRoot.kt`.
+
 ## 5. Status (2026-09-24)
 v1 feature-complete and verified on the API 37 emulator. Remaining before a public release:
 - [ ] Test on a real device: Messenger in-app browser, Samsung/MIUI settings-guard package names, battery behaviour of the VPN service overnight.

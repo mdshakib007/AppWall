@@ -3,7 +3,14 @@
 package io.github.mdshakib007.appwall.ui.add
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,12 +24,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -34,7 +41,7 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -46,6 +53,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -53,10 +61,12 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -72,18 +82,34 @@ import io.github.mdshakib007.appwall.data.InstalledApp
 import io.github.mdshakib007.appwall.data.db.BlockType
 import io.github.mdshakib007.appwall.ui.common.AppIcon
 import io.github.mdshakib007.appwall.ui.common.BigButton
-import io.github.mdshakib007.appwall.ui.common.ChoiceChip
 import io.github.mdshakib007.appwall.ui.common.Pill
 import io.github.mdshakib007.appwall.ui.common.PillTone
 import io.github.mdshakib007.appwall.ui.common.SectionHeader
-import io.github.mdshakib007.appwall.ui.common.SiteIcon
 import kotlinx.coroutines.launch
+
+/** Something the user ticked but has not confirmed yet. */
+private data class Pending(val type: BlockType, val key: String, val label: String)
+
+private fun pendingKey(type: BlockType, key: String) = "${type.name}:$key"
 
 @Composable
 fun AddScreen(initialTab: Int, onBack: () -> Unit) {
     var tab by remember { mutableIntStateOf(initialTab.coerceIn(0, 1)) }
     val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
     val state by Graph.engine.stateFlow.collectAsState()
+    // Suggestions and app rows only stage a selection; nothing is blocked until "Block N" is tapped.
+    val pending = remember { mutableStateMapOf<String, Pending>() }
+
+    fun confirm() {
+        val items = pending.values.toList()
+        if (items.isEmpty()) return
+        pending.clear()
+        scope.launch {
+            items.forEach { Graph.repo.add(it.type, it.key, it.label) }
+            snackbar.showSnackbar(if (items.size == 1) "Blocked ${items.first().label}" else "Blocked ${items.size} items")
+        }
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -99,12 +125,7 @@ fun AddScreen(initialTab: Int, onBack: () -> Unit) {
                     Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Websites") })
                     Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("Apps") })
                 }
-            }
-        },
-    ) { inner ->
-        Box(Modifier.fillMaxSize().padding(inner)) {
-            if (state.focusActive) {
-                Column {
+                if (state.focusActive) {
                     Row(
                         Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primaryContainer).padding(horizontal = 20.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -116,23 +137,49 @@ fun AddScreen(initialTab: Int, onBack: () -> Unit) {
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
-                    if (tab == 0) WebsitesTab(snackbar) else AppsTab(snackbar)
                 }
-            } else {
-                if (tab == 0) WebsitesTab(snackbar) else AppsTab(snackbar)
+            }
+        },
+        bottomBar = { ConfirmBar(count = pending.size, onClear = { pending.clear() }, onConfirm = ::confirm) },
+    ) { inner ->
+        Box(Modifier.fillMaxSize().padding(inner)) {
+            if (tab == 0) WebsitesTab(snackbar, pending) else AppsTab(snackbar, pending)
+        }
+    }
+}
+
+@Composable
+private fun ConfirmBar(count: Int, onClear: () -> Unit, onConfirm: () -> Unit) {
+    AnimatedVisibility(
+        visible = count > 0,
+        enter = slideInVertically(tween(260)) { it } + fadeIn(tween(200)),
+        exit = slideOutVertically(tween(220)) { it } + fadeOut(tween(160)),
+    ) {
+        Column(Modifier.background(MaterialTheme.colorScheme.surfaceContainerLowest)) {
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text("$count selected", style = MaterialTheme.typography.titleSmall)
+                    TextButton(onClick = onClear, contentPadding = PaddingValues(0.dp), modifier = Modifier.height(28.dp)) { Text("Clear") }
+                }
+                BigButton(if (count == 1) "Block 1 item" else "Block $count items", onConfirm, Modifier.width(190.dp), icon = Icons.Rounded.Check)
             }
         }
     }
 }
 
 @Composable
-private fun WebsitesTab(snackbar: SnackbarHostState) {
+private fun WebsitesTab(snackbar: SnackbarHostState, pending: SnapshotStateMap<String, Pending>) {
     val scope = rememberCoroutineScope()
     val state by Graph.engine.stateFlow.collectAsState()
     val blocked = state.itemByDomain.keys
     var input by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
+    // Typing a domain is deliberate, so it blocks immediately.
     fun add(raw: String) {
         val d = Domains.normalize(raw)
         if (d == null) { error = "That doesn't look like a website address."; return }
@@ -145,15 +192,13 @@ private fun WebsitesTab(snackbar: SnackbarHostState) {
     }
 
     fun toggle(s: Catalog.SiteSuggestion) {
-        val all = s.domains.all { it in blocked }
-        scope.launch {
-            if (all) {
-                if (state.focusActive) { snackbar.showSnackbar("Locked by Focus Mode"); return@launch }
-                s.domains.forEach { d -> state.itemByDomain[d]?.let { runCatching { Graph.repo.remove(it) } } }
-            } else {
-                s.domains.forEach { d -> Graph.repo.add(BlockType.WEBSITE, d, d) }
-            }
+        if (s.domains.all { it in blocked }) {
+            scope.launch { snackbar.showSnackbar("${s.name} is already blocked. Open it from your list to change it.") }
+            return
         }
+        val keys = s.domains.map { pendingKey(BlockType.WEBSITE, it) }
+        if (keys.all { it in pending }) keys.forEach { pending.remove(it) }
+        else s.domains.forEach { d -> if (d !in blocked) pending[pendingKey(BlockType.WEBSITE, d)] = Pending(BlockType.WEBSITE, d, d) }
     }
 
     LazyColumn(Modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(bottom = 40.dp)) {
@@ -175,7 +220,7 @@ private fun WebsitesTab(snackbar: SnackbarHostState) {
                     shape = MaterialTheme.shapes.medium,
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MaterialTheme.colorScheme.primary),
                 )
-                AnimatedVisibility(input.isNotBlank()) {
+                AnimatedVisibility(input.isNotBlank(), enter = fadeIn() + slideInVertically { -it / 2 }, exit = fadeOut()) {
                     BigButton("Block ${Domains.normalize(input) ?: input.trim()}", { add(input) }, Modifier.padding(top = 6.dp), icon = Icons.Rounded.Check)
                 }
             }
@@ -187,8 +232,9 @@ private fun WebsitesTab(snackbar: SnackbarHostState) {
                     Modifier.padding(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     group.sites.forEach { s ->
-                        val on = s.domains.all { it in blocked }
-                        SuggestionChip(text = "${s.emoji} ${s.name}", selected = on, onClick = { toggle(s) })
+                        val isBlocked = s.domains.all { it in blocked }
+                        val isPending = !isBlocked && s.domains.all { it in blocked || pendingKey(BlockType.WEBSITE, it) in pending }
+                        SuggestionChip(text = "${s.emoji} ${s.name}", selected = isPending, blocked = isBlocked, onClick = { toggle(s) })
                     }
                 }
                 Spacer(Modifier.height(8.dp))
@@ -197,13 +243,38 @@ private fun WebsitesTab(snackbar: SnackbarHostState) {
     }
 }
 
+/** Neutral → orange when selected; dimmed with a lock when already blocked. Colors animate. */
 @Composable
-private fun SuggestionChip(text: String, selected: Boolean, onClick: () -> Unit) {
-    ChoiceChip(text, selected, onClick, leading = if (selected) ({ Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onPrimary) }) else null)
+private fun SuggestionChip(text: String, selected: Boolean, blocked: Boolean, onClick: () -> Unit) {
+    val bg by animateColorAsState(
+        when {
+            blocked -> MaterialTheme.colorScheme.surfaceContainerHigh
+            selected -> MaterialTheme.colorScheme.primary
+            else -> MaterialTheme.colorScheme.surfaceContainerLowest
+        }, tween(180), label = "chipBg",
+    )
+    val fg by animateColorAsState(
+        when {
+            blocked -> MaterialTheme.colorScheme.onSurfaceVariant
+            selected -> MaterialTheme.colorScheme.onPrimary
+            else -> MaterialTheme.colorScheme.onSurface
+        }, tween(180), label = "chipFg",
+    )
+    val border = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    Row(
+        Modifier.background(bg, MaterialTheme.shapes.small).border(1.dp, border, MaterialTheme.shapes.small)
+            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (blocked) Icon(Icons.Rounded.Lock, null, Modifier.size(14.dp), tint = fg)
+        else if (selected) Icon(Icons.Rounded.Check, null, Modifier.size(16.dp), tint = fg)
+        Text(text, style = MaterialTheme.typography.labelLarge, color = fg)
+    }
 }
 
 @Composable
-private fun AppsTab(snackbar: SnackbarHostState) {
+private fun AppsTab(snackbar: SnackbarHostState, pending: SnapshotStateMap<String, Pending>) {
     val scope = rememberCoroutineScope()
     val state by Graph.engine.stateFlow.collectAsState()
     var apps by remember { mutableStateOf<List<InstalledApp>?>(null) }
@@ -220,15 +291,12 @@ private fun AppsTab(snackbar: SnackbarHostState) {
     val filtered = if (query.isBlank()) list else list.filter { it.label.contains(query, true) || it.packageName.contains(query, true) }
 
     fun toggle(app: InstalledApp) {
-        val existing = state.itemByPackage[app.packageName]
-        scope.launch {
-            if (existing != null) {
-                if (state.focusActive) { snackbar.showSnackbar("Locked by Focus Mode"); return@launch }
-                Graph.repo.remove(existing)
-            } else {
-                Graph.repo.add(BlockType.APP, app.packageName, app.label)
-            }
+        if (app.packageName in state.itemByPackage) {
+            scope.launch { snackbar.showSnackbar("${app.label} is already blocked. Open it from your list to change it.") }
+            return
         }
+        val k = pendingKey(BlockType.APP, app.packageName)
+        if (k in pending) pending.remove(k) else pending[k] = Pending(BlockType.APP, app.packageName, app.label)
     }
 
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
@@ -245,12 +313,12 @@ private fun AppsTab(snackbar: SnackbarHostState) {
         if (query.isBlank() && suggested.isNotEmpty()) {
             item { SectionHeader("Popular time-eaters on your phone", trailing = { Pill("${suggested.size}", tone = PillTone.PRIMARY) }) }
             items(suggested, key = { "s" + it.packageName }) { app ->
-                AppRow(app, checked = app.packageName in state.itemByPackage, locked = state.focusActive) { toggle(app) }
+                AppRow(app, blocked = app.packageName in state.itemByPackage, selected = pendingKey(BlockType.APP, app.packageName) in pending) { toggle(app) }
             }
             item { SectionHeader("All apps") }
         }
         items(filtered, key = { it.packageName }) { app ->
-            AppRow(app, checked = app.packageName in state.itemByPackage, locked = state.focusActive) { toggle(app) }
+            AppRow(app, blocked = app.packageName in state.itemByPackage, selected = pendingKey(BlockType.APP, app.packageName) in pending) { toggle(app) }
         }
         if (filtered.isEmpty()) item {
             Text("No apps match \"$query\".", Modifier.padding(20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -259,18 +327,25 @@ private fun AppsTab(snackbar: SnackbarHostState) {
 }
 
 @Composable
-private fun AppRow(app: InstalledApp, checked: Boolean, locked: Boolean, onToggle: () -> Unit) {
+private fun AppRow(app: InstalledApp, blocked: Boolean, selected: Boolean, onToggle: () -> Unit) {
+    val rowBg by animateColorAsState(
+        if (selected) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else MaterialTheme.colorScheme.background,
+        tween(180), label = "rowBg",
+    )
     Row(
-        Modifier.fillMaxWidth().clickable(onClick = onToggle).padding(horizontal = 20.dp, vertical = 8.dp),
+        Modifier.fillMaxWidth().background(rowBg).clickable(onClick = onToggle).padding(horizontal = 20.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         AppIcon(app.packageName, 42.dp)
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(app.label, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (app.isBrowser) Text("Browser", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                if (blocked) "Already blocked" else if (app.isBrowser) "Browser" else app.packageName,
+                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            )
         }
-        if (checked && locked) Icon(Icons.Rounded.Lock, null, Modifier.size(18.dp).padding(end = 2.dp), tint = MaterialTheme.colorScheme.primary)
-        Checkbox(checked = checked, onCheckedChange = { onToggle() }, enabled = !(checked && locked))
+        if (blocked) Icon(Icons.Rounded.Lock, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        else Checkbox(checked = selected, onCheckedChange = { onToggle() })
     }
 }

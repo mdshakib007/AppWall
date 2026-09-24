@@ -193,22 +193,22 @@ fun HomeScreen(
 
             if (apps.isNotEmpty()) {
                 item { SectionHeader("Apps · ${apps.size}") }
-                items(apps, key = { "a" + it.id }) { BlockRow(it, state.focusActive, now, onOpenItem) }
+                items(apps, key = { "a" + it.id }) { BlockRow(it, state.focusActive, now, onOpenItem, Modifier.animateItem()) }
             }
             if (sites.isNotEmpty()) {
                 item { SectionHeader("Websites · ${sites.size}") }
-                items(sites, key = { "s" + it.id }) { BlockRow(it, state.focusActive, now, onOpenItem) }
+                items(sites, key = { "s" + it.id }) { BlockRow(it, state.focusActive, now, onOpenItem, Modifier.animateItem()) }
             }
         }
     }
 }
 
 @Composable
-private fun BlockRow(item: BlockItem, focusActive: Boolean, now: Long, onOpen: (Long) -> Unit) {
+private fun BlockRow(item: BlockItem, focusActive: Boolean, now: Long, onOpen: (Long) -> Unit, modifier: Modifier = Modifier) {
     val active = focusActive || BlockRules.isActive(item, now)
     val ended = !focusActive && BlockRules.hasEnded(item, now)
     Row(
-        Modifier.fillMaxWidth().clickable { onOpen(item.id) }.padding(horizontal = 20.dp, vertical = 10.dp),
+        modifier.fillMaxWidth().clickable { onOpen(item.id) }.padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (item.type == BlockType.APP) AppIcon(item.key, 46.dp) else SiteIcon(46.dp)

@@ -1,9 +1,13 @@
 package io.github.mdshakib007.appwall.ui
 
-import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
@@ -45,6 +49,9 @@ import io.github.mdshakib007.appwall.ui.settings.AboutScreen
 import io.github.mdshakib007.appwall.ui.settings.PrivacyScreen
 import io.github.mdshakib007.appwall.ui.settings.SettingsScreen
 
+/** Material "emphasized decelerate" curve: fast start, soft landing. */
+val Emphasized = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
+
 object Routes {
     const val ONBOARDING = "onboarding"
     const val HOME = "home"
@@ -79,13 +86,27 @@ fun AppRoot(onboardingDone: Boolean) {
         bottomBar = { if (showBar) BottomBar(nav, currentRoute) },
     ) { padding ->
         Box(Modifier.fillMaxSize()) {
+            val tabRoutes = tabs.map { it.route }
             NavHost(
                 navController = nav,
                 startDestination = if (onboardingDone) Routes.HOME else Routes.ONBOARDING,
-                enterTransition = { fadeIn(tween(220)) + slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(260)) { it / 8 } },
-                exitTransition = { fadeOut(tween(180)) },
-                popEnterTransition = { fadeIn(tween(220)) },
-                popExitTransition = { fadeOut(tween(180)) + slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(260)) { it / 8 } },
+                // Tab ↔ tab: quiet fade-through. Push: new screen slides in from the right while the old one
+                // parallaxes left. Pop: the reverse. Onboarding → home: slide up.
+                enterTransition = {
+                    when {
+                        initialState.destination.route == Routes.ONBOARDING -> slideInVertically(tween(420, easing = Emphasized)) { it / 3 } + fadeIn(tween(300))
+                        targetState.destination.route in tabRoutes && initialState.destination.route in tabRoutes -> fadeIn(tween(220)) + scaleIn(tween(260, easing = Emphasized), initialScale = 0.97f)
+                        else -> slideInHorizontally(tween(360, easing = Emphasized)) { it } + fadeIn(tween(220))
+                    }
+                },
+                exitTransition = {
+                    when {
+                        targetState.destination.route in tabRoutes && initialState.destination.route in tabRoutes -> fadeOut(tween(160))
+                        else -> slideOutHorizontally(tween(360, easing = Emphasized)) { -it / 4 } + fadeOut(tween(260))
+                    }
+                },
+                popEnterTransition = { slideInHorizontally(tween(340, easing = Emphasized)) { -it / 4 } + fadeIn(tween(240)) },
+                popExitTransition = { slideOutHorizontally(tween(340, easing = Emphasized)) { it } + fadeOut(tween(220)) },
             ) {
                 composable(Routes.ONBOARDING) {
                     OnboardingScreen(onDone = {
