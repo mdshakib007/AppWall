@@ -57,7 +57,11 @@ import io.github.mdshakib007.appwall.core.Savings
 import io.github.mdshakib007.appwall.data.db.BlockItem
 import io.github.mdshakib007.appwall.data.db.BlockType
 import io.github.mdshakib007.appwall.ui.common.AppTopBar
+import io.github.mdshakib007.appwall.ui.common.AccessibilityDisclosureDialog
 import io.github.mdshakib007.appwall.ui.common.AppIcon
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import io.github.mdshakib007.appwall.ui.common.Format
 import io.github.mdshakib007.appwall.ui.common.IconTile
 import io.github.mdshakib007.appwall.ui.common.SmallButton
@@ -84,6 +88,8 @@ fun HomeScreen(
     val state by Graph.engine.stateFlow.collectAsState()
     val perms by rememberPermissionStatus()
     val dnsWanted by Graph.prefs.dnsFilterEnabled.collectAsState(initial = false)
+    var showA11yDisclosure by remember { mutableStateOf(false) }
+    if (showA11yDisclosure) AccessibilityDisclosureDialog(onDismiss = { showA11yDisclosure = false })
     val now = state.now.takeIf { it > 0 } ?: System.currentTimeMillis()
     val startOfDay = Graph.usage.startOfDay(now)
     val attemptsToday by Graph.repo.attemptCountSince(startOfDay).collectAsState(initial = 0)
@@ -132,7 +138,7 @@ fun HomeScreen(
                         else "Allow AppWall to display over other apps to show the Blocked screen.",
                         action = "Fix now",
                         onClick = {
-                            context.startActivity(if (!perms.accessibility) Permissions.accessibilityIntent() else Permissions.overlayIntent(context))
+                            if (!perms.accessibility) showA11yDisclosure = true else context.startActivity(Permissions.overlayIntent(context))
                         },
                     )
                 } else if (sites.isNotEmpty() && !perms.vpnRunning) {

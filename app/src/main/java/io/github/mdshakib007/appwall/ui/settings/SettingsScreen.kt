@@ -53,7 +53,11 @@ import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.R
 import io.github.mdshakib007.appwall.service.DnsFilterVpnService
 import io.github.mdshakib007.appwall.ui.common.AppTopBar
+import io.github.mdshakib007.appwall.ui.common.AccessibilityDisclosureDialog
 import io.github.mdshakib007.appwall.ui.common.BigButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import io.github.mdshakib007.appwall.ui.common.Permissions
 import io.github.mdshakib007.appwall.ui.common.Pill
 import io.github.mdshakib007.appwall.ui.common.PillTone
@@ -78,6 +82,8 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onPrivacy: () -> Uni
     val revoked by DnsFilterVpnService.revoked.collectAsState()
     val state by Graph.engine.stateFlow.collectAsState()
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    var showA11yDisclosure by remember { mutableStateOf(false) }
+    if (showA11yDisclosure) AccessibilityDisclosureDialog(onDismiss = { showA11yDisclosure = false })
     val vpnLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (it.resultCode == Activity.RESULT_OK) { scope.launch { Graph.prefs.setDnsFilterEnabled(true) }; DnsFilterVpnService.start(context) }
     }
@@ -101,7 +107,7 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onPrivacy: () -> Uni
             )
 
             SectionHeader("Protection")
-            PermRow("Accessibility service", "Required for all blocking", perms.accessibility) { context.startActivity(Permissions.accessibilityIntent()) }
+            PermRow("Accessibility service", "Required for app blocking", perms.accessibility) { showA11yDisclosure = true }
             PermRow("Display over other apps", "Shows the Blocked screen", perms.overlay) { context.startActivity(Permissions.overlayIntent(context)) }
             PermRow("Usage access", "Screen-time insights", perms.usage) { context.startActivity(Permissions.usageIntent()) }
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {

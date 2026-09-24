@@ -132,6 +132,10 @@ Issues and pull requests are welcome. Easy wins:
 
 Please keep the two promises that define this project: **no network calls except DNS forwarding, and no third-party SDKs.**
 
+## Privacy policy
+
+[PRIVACY.md](PRIVACY.md) — no data collected, ever. Also used as the Google Play privacy policy URL.
+
 ## License
 
 [MIT](LICENSE)

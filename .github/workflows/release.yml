@@ -74,22 +74,23 @@ jobs:
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest --no-daemon
 
-      - name: Build release APK
+      - name: Build release APK and App Bundle
         env:
           APPWALL_KEYSTORE_PASSWORD: ${{ secrets.APPWALL_KEYSTORE_PASSWORD }}
           APPWALL_KEY_ALIAS: ${{ secrets.APPWALL_KEY_ALIAS }}
           APPWALL_KEY_PASSWORD: ${{ secrets.APPWALL_KEY_PASSWORD }}
         run: |
-          ./gradlew :app:assembleRelease --no-daemon \
+          ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon \
             -PappVersionName="${{ steps.ver.outputs.name }}" \
             -PappVersionCode="${{ steps.ver.outputs.code }}"
 
       - name: Rename and checksum
         run: |
-          OUT="AppWall-v${{ steps.ver.outputs.name }}.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$OUT"
-          sha256sum "$OUT" > "$OUT.sha256"
-          ls -la "$OUT"
+          V="${{ steps.ver.outputs.name }}"
+          cp app/build/outputs/apk/release/app-release.apk "AppWall-v$V.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "AppWall-v$V.aab"   # for Google Play
+          sha256sum "AppWall-v$V.apk" > "AppWall-v$V.apk.sha256"
+          ls -la AppWall-v$V.*
 
       - name: Create tag and GitHub Release
         uses: softprops/action-gh-release@v2
@@ -101,3 +102,4 @@ jobs:
           files: |
             AppWall-v${{ steps.ver.outputs.name }}.apk
             AppWall-v${{ steps.ver.outputs.name }}.apk.sha256
+            AppWall-v${{ steps.ver.outputs.name }}.aab

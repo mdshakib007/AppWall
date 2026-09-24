@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.dp
 import io.github.mdshakib007.appwall.BuildConfig
 import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.R
+import io.github.mdshakib007.appwall.ui.common.AccessibilityDisclosureDialog
 import io.github.mdshakib007.appwall.ui.common.BigButton
 import io.github.mdshakib007.appwall.ui.common.Pill
 import io.github.mdshakib007.appwall.ui.common.PillTone
@@ -183,6 +184,8 @@ fun PermissionsStep(onDone: () -> Unit, standalone: Boolean = false) {
         if (it.resultCode == Activity.RESULT_OK) DnsFilterVpnService.start(context)
     }
     val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
+    var showA11yDisclosure by remember { mutableStateOf(false) }
+    if (showA11yDisclosure) AccessibilityDisclosureDialog(onDismiss = { showA11yDisclosure = false })
 
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
@@ -198,7 +201,7 @@ fun PermissionsStep(onDone: () -> Unit, standalone: Boolean = false) {
             PermissionCard(
                 icon = Icons.Rounded.Accessibility, title = "Accessibility service", required = true, granted = perms.accessibility,
                 body = "Lets AppWall see which app is open so it can block the apps you chose. Find AppWall in the list and turn it on.",
-                action = { context.startActivity(Permissions.accessibilityIntent()) },
+                action = { showA11yDisclosure = true },
             )
             PermissionCard(
                 icon = Icons.Rounded.Layers, title = "Display over other apps", required = true, granted = perms.overlay,
