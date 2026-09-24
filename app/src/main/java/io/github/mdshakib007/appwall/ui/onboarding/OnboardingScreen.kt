@@ -70,6 +70,8 @@ import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.R
 import io.github.mdshakib007.appwall.service.DnsFilterVpnService
 import io.github.mdshakib007.appwall.ui.common.BigButton
+import io.github.mdshakib007.appwall.ui.common.Pill
+import io.github.mdshakib007.appwall.ui.common.PillTone
 import io.github.mdshakib007.appwall.ui.common.IconTile
 import io.github.mdshakib007.appwall.ui.common.SmallButton
 import androidx.compose.ui.text.font.FontWeight
@@ -250,14 +252,12 @@ private fun PermissionCard(icon: ImageVector, title: String, required: Boolean, 
             IconTile(icon, size = 40.dp, muted = granted)
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(title, style = MaterialTheme.typography.titleMedium)
-                    if (required && !granted) {
-                        Spacer(Modifier.width(6.dp))
-                        Text("Required", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
-                    }
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                if (required && !granted) {
+                    Spacer(Modifier.height(4.dp))
+                    Pill("Required", tone = PillTone.PRIMARY)
                 }
-                Spacer(Modifier.height(2.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(body, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.width(10.dp))

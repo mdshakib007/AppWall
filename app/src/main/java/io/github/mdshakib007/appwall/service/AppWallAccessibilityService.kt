@@ -90,6 +90,7 @@ class AppWallAccessibilityService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             if (pkg != currentForeground) {
                 currentForeground = pkg
+                Graph.foregroundPackage = pkg
                 if (!isBrowser(pkg)) endSiteSession(now)
             }
             state.blockedItemForPackage(pkg)?.let { item ->

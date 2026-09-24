@@ -23,6 +23,15 @@ Everything happens on your phone. There is no server, nothing to sign in to, and
 
 Grab the latest APK from the [Releases page](https://github.com/mdshakib007/AppWall/releases/latest). Requires Android 10 or newer. The APK is about 3.5 MB.
 
+## Installing
+
+AppWall is not on Google Play yet. Sideloaded apps that use an accessibility service are blocked by Google Play Protect's fraud protection in a growing number of countries, so you may see "App blocked to protect your device". Two ways past it:
+
+- **Install with adb** (Play Protect doesn't intercept it): enable USB debugging, then `adb install AppWall-v1.0.0.apk`.
+- **Pause Play Protect scanning**: Play Store → your avatar → *Play Protect* → gear icon → turn off *Scan apps with Play Protect* → install → turn it back on. The check only runs at install time.
+
+After installing, if the accessibility toggle is greyed out with a "Restricted setting" message: Settings → Apps → AppWall → ⋮ → *Allow restricted settings*, then enable the service.
+
 ## Features
 
 - **Block apps.** Pick from installed apps; AppWall suggests the usual time-eaters it finds on your phone.

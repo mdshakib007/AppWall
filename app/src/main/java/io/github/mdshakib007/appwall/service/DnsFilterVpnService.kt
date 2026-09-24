@@ -224,7 +224,12 @@ class DnsFilterVpnService : VpnService() {
             if (blocked != null) {
                 val resp = Dns.buildNxDomain(udp.payload)
                 write(output, Dns.buildIpv4Udp(udp.dstIp, udp.srcIp, udp.dstPort, udp.srcPort, resp))
-                Graph.scope.launch { Graph.engine.state.itemByDomain[blocked]?.let { Graph.repo.recordAttempt(it) } }
+                // Only count it as an attempt when a browser is actually in front: apps retry DNS in the
+                // background all day (the Facebook app keeps resolving facebook.com whether you open it or not).
+                val fg = Graph.foregroundPackage
+                if (fg != null && isBrowser(fg)) {
+                    Graph.scope.launch { Graph.engine.state.itemByDomain[blocked]?.let { Graph.repo.recordAttempt(it, minGapMs = 30_000) } }
+                }
             } else {
                 forward(udp, output)
             }
@@ -260,6 +265,9 @@ class DnsFilterVpnService : VpnService() {
             Log.w(TAG, "forward: $e")
         }
     }
+
+    private fun isBrowser(pkg: String): Boolean =
+        io.github.mdshakib007.appwall.data.Catalog.browserUrlBarIds.containsKey(pkg) || pkg in Graph.installedApps.browserPackages()
 
     private fun write(output: FileOutputStream, packet: ByteArray) {
         synchronized(output) { runCatching { output.write(packet) } }

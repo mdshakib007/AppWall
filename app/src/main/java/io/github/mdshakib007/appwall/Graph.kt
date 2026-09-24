@@ -22,6 +22,9 @@ object Graph {
     lateinit var repo: BlockRepository private set
     lateinit var engine: BlockEngine private set
 
+    /** Package currently in the foreground, as last seen by the accessibility service (null = unknown). */
+    @Volatile var foregroundPackage: String? = null
+
     /** Process-wide scope for background work shared by services and UI. */
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
