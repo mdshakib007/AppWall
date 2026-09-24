@@ -55,6 +55,8 @@ class AppWallAccessibilityService : AccessibilityService() {
     private var lastShownKey: String? = null
     private var lastShownAt = 0L
     private var lastBrowserCheckAt = 0L
+    private var lastInAppCheckAt = 0L
+    private var screenHeight = 0
     private var lastSettingsCheckAt = 0L
 
     // Website time tracking (for Insights): which domain is currently visible in a browser.
@@ -115,6 +117,20 @@ class AppWallAccessibilityService : AccessibilityService() {
                 trackSite(host, now)
             }
             return
+        }
+
+        // 2b. In-app browser inside another app (Messenger, Facebook, Instagram, Telegram, ...)?
+        // Their web views show the page's host in a toolbar at the top of the screen. We only look at text in
+        // that top strip that is a bare host or URL, so a link pasted in a chat further down never triggers.
+        if (state.blockedDomains.isNotEmpty() && pkg !in SETTINGS_PACKAGES && pkg !in imePackages) {
+            val mono = SystemClock.uptimeMillis()
+            if (mono - lastInAppCheckAt < 400) return
+            lastInAppCheckAt = mono
+            val host = readInAppBrowserHost() ?: return
+            state.blockedItemForHost(host)?.let { item ->
+                performGlobalAction(GLOBAL_ACTION_BACK)
+                block(item, host, isApp = false)
+            }
         }
 
         // 3. Focus-mode guard: keep the user out of AppWall's own Settings pages.
@@ -189,6 +205,44 @@ class AppWallAccessibilityService : AccessibilityService() {
         }
         return null
     }
+
+    /**
+     * Scans only the toolbar zone (top ~12% of the screen) for a node whose whole text is a host or URL, and never
+     * descends into scrollable containers: chat lists and web pages are scrollable, URL bars are not.
+     */
+    private fun readInAppBrowserHost(): String? {
+        val root = rootInActiveWindow ?: return null
+        try {
+            if (screenHeight == 0) screenHeight = resources.displayMetrics.heightPixels
+            val limit = (screenHeight * 0.12f).toInt()
+            return findHostInTopStrip(root, limit, 0, intArrayOf(0))
+        } finally {
+            root.recycleCompat()
+        }
+    }
+
+    private fun findHostInTopStrip(node: AccessibilityNodeInfo, limitY: Int, depth: Int, budget: IntArray): String? {
+        if (depth > 14 || ++budget[0] > 300) return null
+        if (node.isScrollable) return null
+        node.getBoundsInScreen(rect)
+        if (rect.top > limitY) return null // this node and everything under it is lower on screen
+        val text = node.text?.toString()?.trim()
+        if (!text.isNullOrEmpty() && text.length <= 200 && rect.height() in 1..(limitY)) {
+            val cls = node.className?.toString() ?: ""
+            if (cls.endsWith("TextView") || cls.endsWith("EditText") || cls.endsWith("Button")) {
+                Domains.hostFromAddressBar(text)?.let { return it }
+            }
+        }
+        for (i in 0 until minOf(node.childCount, 60)) {
+            val c = node.getChild(i) ?: continue
+            val r = findHostInTopStrip(c, limitY, depth + 1, budget)
+            c.recycleCompat()
+            if (r != null) return r
+        }
+        return null
+    }
+
+    private val rect = android.graphics.Rect()
 
     private fun settingsPageTargetsAppWall(): Boolean {
         val root = rootInActiveWindow ?: return false

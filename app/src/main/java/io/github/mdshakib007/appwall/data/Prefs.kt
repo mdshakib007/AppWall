@@ -27,8 +27,8 @@ class Prefs(private val context: Context) {
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map {
         runCatching { ThemeMode.valueOf(it[K.themeMode] ?: "SYSTEM") }.getOrDefault(ThemeMode.SYSTEM)
     }
-    /** Whether the user wants the DNS-level website filter (VPN) running. Default on. */
-    val dnsFilterEnabled: Flow<Boolean> = context.dataStore.data.map { it[K.dnsFilter] ?: true }
+    /** Strict website blocking: the DNS-level filter (Android calls it a VPN). Opt-in, default off. */
+    val dnsFilterEnabled: Flow<Boolean> = context.dataStore.data.map { it[K.dnsFilter] ?: false }
     val installedAt: Flow<Long> = context.dataStore.data.map { it[K.installedAt] ?: 0L }
     /** During Focus Mode, keep the user out of AppWall's own system-settings pages. Default on. */
     val settingsGuard: Flow<Boolean> = context.dataStore.data.map { it[K.settingsGuard] ?: true }

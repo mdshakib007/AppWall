@@ -37,8 +37,11 @@ class MainActivity : ComponentActivity() {
         // reboot. Bring it back whenever the user opens the app, as long as they want it and consent still stands.
         Graph.scope.launch {
             val wanted = Graph.prefs.dnsFilterEnabled.first()
-            if (wanted && !DnsFilterVpnService.running.value && VpnService.prepare(this@MainActivity) == null) {
+            val running = DnsFilterVpnService.running.value
+            if (wanted && !running && VpnService.prepare(this@MainActivity) == null) {
                 DnsFilterVpnService.start(this@MainActivity)
+            } else if (!wanted && running) {
+                DnsFilterVpnService.stop(this@MainActivity) // setting is off (or was reset to the new default): don't keep the VPN slot
             }
         }
     }

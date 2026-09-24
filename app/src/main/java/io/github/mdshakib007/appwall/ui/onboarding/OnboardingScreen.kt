@@ -2,11 +2,8 @@
 
 package io.github.mdshakib007.appwall.ui.onboarding
 
-import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
@@ -43,9 +40,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Accessibility
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Layers
-import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
@@ -68,7 +63,6 @@ import androidx.compose.ui.unit.dp
 import io.github.mdshakib007.appwall.BuildConfig
 import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.R
-import io.github.mdshakib007.appwall.service.DnsFilterVpnService
 import io.github.mdshakib007.appwall.ui.common.BigButton
 import io.github.mdshakib007.appwall.ui.common.Pill
 import io.github.mdshakib007.appwall.ui.common.PillTone
@@ -178,10 +172,6 @@ fun PermissionsStep(onDone: () -> Unit, standalone: Boolean = false) {
     val context = LocalContext.current
     val perms by rememberPermissionStatus()
     val scope = rememberCoroutineScope()
-    val vpnLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == Activity.RESULT_OK) DnsFilterVpnService.start(context)
-    }
-    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     Column(Modifier.fillMaxSize().safeDrawingPadding()) {
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
@@ -196,7 +186,7 @@ fun PermissionsStep(onDone: () -> Unit, standalone: Boolean = false) {
 
             PermissionCard(
                 icon = Icons.Rounded.Accessibility, title = "Accessibility service", required = true, granted = perms.accessibility,
-                body = "Lets AppWall see which app is open and what's in your browser's address bar, so it can block the items you chose. Find AppWall in the list and turn it on.",
+                body = "Lets AppWall see which app is open and which website is showing in a browser or in-app browser, so it can block the items you chose. Find AppWall in the list and turn it on.",
                 action = { context.startActivity(Permissions.accessibilityIntent()) },
             )
             PermissionCard(
@@ -205,22 +195,10 @@ fun PermissionsStep(onDone: () -> Unit, standalone: Boolean = false) {
                 action = { context.startActivity(Permissions.overlayIntent(context)) },
             )
             PermissionCard(
-                icon = Icons.Rounded.Dns, title = "Website filter", required = false, granted = perms.vpnConsent,
-                body = "A local, on-device DNS filter that blocks sites in every app, including in-app browsers. Android calls it a VPN, but no traffic leaves through it and no server is involved.",
-                action = { Permissions.vpnConsentIntent(context)?.let { vpnLauncher.launch(it) } ?: DnsFilterVpnService.start(context) },
-            )
-            PermissionCard(
                 icon = Icons.Rounded.BarChart, title = "Usage access", required = false, granted = perms.usage,
                 body = "Powers the Insights tab: screen time per app and how much time you're getting back.",
                 action = { context.startActivity(Permissions.usageIntent()) },
             )
-            if (android.os.Build.VERSION.SDK_INT >= 33) {
-                PermissionCard(
-                    icon = Icons.Rounded.Notifications, title = "Notifications", required = false, granted = perms.notifications,
-                    body = "Only for the quiet, silent “website filter is on” status notification Android requires.",
-                    action = { notifLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS) },
-                )
-            }
             Spacer(Modifier.height(12.dp))
         }
         Column(Modifier.padding(horizontal = 24.dp)) {
@@ -229,7 +207,6 @@ fun PermissionsStep(onDone: () -> Unit, standalone: Boolean = false) {
                 onClick = {
                     scope.launch {
                         Graph.prefs.setOnboardingDone(true)
-                        if (perms.vpnConsent) DnsFilterVpnService.start(context)
                         onDone()
                     }
                 },

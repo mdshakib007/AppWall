@@ -36,7 +36,7 @@ After installing, if the accessibility toggle is greyed out with a "Restricted s
 
 - **Block apps.** Pick from installed apps; AppWall suggests the usual time-eaters it finds on your phone.
 - **Block websites.** Type a domain, or tap popular sites grouped by category. Blocking `facebook.com` also blocks `m.facebook.com`, `bd.facebook.com` and every other subdomain.
-- **Every browser, every in-app browser.** Two independent layers make sure a blocked site stays blocked in Chrome, Firefox, Brave, Edge, Opera, Samsung Internet and the rest, and inside apps like Messenger.
+- **Every browser, every in-app browser.** Chrome, Firefox, Brave, Edge, Opera, Samsung Internet and the rest, plus the built-in browsers inside apps like Messenger, Facebook, Instagram and Telegram. An optional strict mode adds a network-level filter on top.
 - **Schedules.** Forever, 1 hour to 1 year, a specific date, or daily time windows on chosen weekdays (windows can cross midnight). Edit any time.
 - **Focus Mode.** A one-way commitment: choose a number of days and every block is locked for that period. You can add more, but nothing can be edited or removed, and AppWall keeps you out of its own system-settings pages so there is no quick escape hatch.
 - **Insights.** Screen time today and this week, top apps, top websites, attempts blocked, and an honest estimate of the time you got back, with the formula explained in the app.
@@ -48,17 +48,17 @@ After installing, if the accessibility toggle is greyed out with a "Restricted s
 | Layer | Mechanism | Covers |
 |---|---|---|
 | Apps | An accessibility service notices which app comes to the front and shows the *Blocked* screen over it. | Every app |
-| Websites, layer 1 | The same service reads the address bar of known browsers and reacts instantly. | Browsers |
-| Websites, layer 2 | A local, DNS-only `VpnService`. Only DNS lookups pass through it. Blocked names get *NXDOMAIN*; everything else is handed to Android's own resolver unchanged. | Every app, including in-app browsers |
+| Websites | The same service reads the address bar of known browsers and the title bar of in-app browsers, and reacts instantly. | Browsers and in-app browsers |
+| Strict website blocking (optional, off by default) | A local, DNS-only `VpnService`. Only DNS lookups pass through it. Blocked names get *NXDOMAIN*; everything else is handed to Android's own resolver unchanged. | Every app on the phone, at the network level |
 
-The VPN never sees, routes or logs any traffic other than DNS lookups, and it never contacts any host other than the resolver your network already uses.
+Strict mode is for people who want a blocked domain unreachable by any app at all, not just hidden from browsers. It uses Android's VPN slot, so it can't run alongside another VPN. It never sees, routes or logs any traffic other than DNS lookups, and it never contacts any host other than the resolver your network already uses.
 
 ## Privacy, and how to verify it
 
 - **No server, no account, no analytics, no crash reporting, no third-party SDKs.**
 - **Backups are disabled.** Your blocklist and statistics live in the app's private storage and are deleted on uninstall.
-- **One network permission, one reason.** Android will not forward DNS lookups on an app's behalf without the `INTERNET` permission. That is the only thing AppWall uses it for. The only code that touches the network is [`DnsFilterVpnService.kt`](app/src/main/java/io/github/mdshakib007/appwall/service/DnsFilterVpnService.kt). Turn the website filter off in Settings and the app makes no network requests at all.
-- **The accessibility service** looks at two things: which package is in front, and the text in a browser's address bar. It never records keystrokes, messages or page content. It is [one short file](app/src/main/java/io/github/mdshakib007/appwall/service/AppWallAccessibilityService.kt).
+- **One network permission, one reason.** Android will not forward DNS lookups on an app's behalf without the `INTERNET` permission. That is the only thing AppWall uses it for, and only when strict website blocking is on. The only code that touches the network is [`DnsFilterVpnService.kt`](app/src/main/java/io/github/mdshakib007/appwall/service/DnsFilterVpnService.kt). With strict mode off (the default) the app makes no network requests at all.
+- **The accessibility service** looks at two things: which package is in front, and the website shown in a browser's address bar or an in-app browser's title bar. It never records keystrokes, messages or page content. It is [one short file](app/src/main/java/io/github/mdshakib007/appwall/service/AppWallAccessibilityService.kt).
 - **Usage access** is optional and only powers the Insights tab.
 
 ### Permissions
@@ -67,11 +67,10 @@ The VPN never sees, routes or logs any traffic other than DNS lookups, and it ne
 |---|---|
 | Accessibility service | See the foreground app and the browser address bar. Required for blocking. |
 | Display over other apps | Show the *Blocked* screen on top of a blocked app. Required. |
-| VPN (website filter) | On-device DNS filter for every app, including in-app browsers. Recommended. |
 | Usage access | Screen-time insights. Optional. |
-| Notifications | Android requires a silent status notification while the DNS filter runs. |
+| VPN + Notifications | Only if you turn on strict website blocking in Settings. Android requires a silent status notification while the filter runs. |
 
-Known limit: if Private DNS is set to a specific provider in Android's network settings, Android sends lookups straight to that provider and the DNS layer can't see them. AppWall detects this and shows a warning; the browser layer still works.
+Known limit of strict mode: if Private DNS is set to a specific provider in Android's network settings, Android sends lookups straight to that provider and the DNS layer can't see them. AppWall detects this and shows a warning; the accessibility layer still works.
 
 ## Building from source
 

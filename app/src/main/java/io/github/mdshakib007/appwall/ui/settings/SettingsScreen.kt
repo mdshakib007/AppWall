@@ -77,6 +77,7 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onPrivacy: () -> Uni
     val vpnRunning by DnsFilterVpnService.running.collectAsState()
     val revoked by DnsFilterVpnService.revoked.collectAsState()
     val state by Graph.engine.stateFlow.collectAsState()
+    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     val vpnLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (it.resultCode == Activity.RESULT_OK) { scope.launch { Graph.prefs.setDnsFilterEnabled(true) }; DnsFilterVpnService.start(context) }
     }
@@ -105,14 +106,14 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onPrivacy: () -> Uni
             PermRow("Usage access", "Screen-time insights", perms.usage) { context.startActivity(Permissions.usageIntent()) }
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Website filter (on-device DNS)", style = MaterialTheme.typography.bodyLarge)
+                    Text("Strict website blocking", style = MaterialTheme.typography.bodyLarge)
                     Text(
                         when {
                             state.focusActive && dnsWanted -> "Locked on by Focus Mode"
                             revoked -> "Stopped: another VPN took over. Turn it back on to re-enable."
-                            vpnRunning -> "Running · blocks sites in every app, including in-app browsers"
+                            vpnRunning -> "On · a local DNS filter also blocks sites for apps themselves. Uses Android's VPN slot; no traffic leaves through it."
                             dnsWanted -> "Starting…"
-                            else -> "Off · sites are still blocked in browsers via the address bar"
+                            else -> "Off · sites are blocked in browsers and in-app browsers. Turn on to also block them at the network level (uses Android's VPN slot)."
                         },
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -122,6 +123,7 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onPrivacy: () -> Uni
                     enabled = !(state.focusActive && dnsWanted),
                     onCheckedChange = { on ->
                         if (on) {
+                            if (android.os.Build.VERSION.SDK_INT >= 33 && !perms.notifications) notifLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
                             val consent = Permissions.vpnConsentIntent(context)
                             if (consent != null) vpnLauncher.launch(consent) else { scope.launch { Graph.prefs.setDnsFilterEnabled(true) }; DnsFilterVpnService.start(context) }
                         } else {
@@ -253,10 +255,10 @@ fun PrivacyScreen(onBack: () -> Unit) {
             Text("Nothing leaves your phone. Here's how you can check.", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
             Point("No server, no account", "There is nothing to sign in to and nowhere to sync. Your blocklist, schedules and statistics live in a small database inside the app's private storage.")
-            Point("The one network permission, explained", "AppWall holds the INTERNET permission for a single reason: the website filter must pass lookups that are not blocked on to the DNS resolver your network already uses, and Android refuses to do even that without it. That code lives in one file, DnsFilterVpnService.kt, and nothing else in the app touches the network. It never contacts any other host. Turn the website filter off and the app makes no network requests at all.")
+            Point("The one network permission, explained", "AppWall holds the INTERNET permission for a single reason: strict website blocking must pass lookups that are not blocked on to the DNS resolver your network already uses, and Android refuses to do even that without it. That code lives in one file, DnsFilterVpnService.kt, and nothing else in the app touches the network. It never contacts any other host. With strict blocking off (the default) the app makes no network requests at all.")
             Point("Uninstall means gone", "Backups are disabled. Remove the app and everything it stored is deleted with it.")
-            Point("What the accessibility service sees", "Only which app is in front, and the text in a browser's address bar. It never records keystrokes, messages or page content. The source is public; the whole service is one short file.")
-            Point("What the website filter does", "Android calls it a VPN, but only DNS lookups pass through it. Blocked names are answered locally with \"does not exist\"; everything else is handed to Android's own resolver unchanged. No other traffic touches it, and nothing is logged.")
+            Point("What the accessibility service sees", "Which app is in front, and the website shown in a browser's address bar or in an in-app browser's title bar. It never records keystrokes, messages or page content. The source is public; the whole service is one short file.")
+            Point("Strict website blocking (optional)", "Off by default. When on, a local DNS filter also blocks the sites for apps themselves. Android calls it a VPN, but only DNS lookups pass through it. Blocked names are answered locally with \"does not exist\"; everything else is handed to Android's own resolver unchanged. No other traffic touches it, and nothing is logged.")
             Point("What usage access is for", "It powers the Insights tab: how long apps were on screen. Durations only, computed on demand, never stored anywhere else.")
             Spacer(Modifier.height(24.dp))
         }

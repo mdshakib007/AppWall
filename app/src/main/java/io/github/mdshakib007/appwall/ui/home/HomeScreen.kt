@@ -83,6 +83,7 @@ fun HomeScreen(
     val context = LocalContext.current
     val state by Graph.engine.stateFlow.collectAsState()
     val perms by rememberPermissionStatus()
+    val dnsWanted by Graph.prefs.dnsFilterEnabled.collectAsState(initial = false)
     val now = state.now.takeIf { it > 0 } ?: System.currentTimeMillis()
     val startOfDay = Graph.usage.startOfDay(now)
     val attemptsToday by Graph.repo.attemptCountSince(startOfDay).collectAsState(initial = 0)
@@ -134,17 +135,17 @@ fun HomeScreen(
                             context.startActivity(if (!perms.accessibility) Permissions.accessibilityIntent() else Permissions.overlayIntent(context))
                         },
                     )
-                } else if (sites.isNotEmpty() && perms.privateDnsStrict) {
+                } else if (sites.isNotEmpty() && dnsWanted && perms.privateDnsStrict) {
                     WarningCard(
                         title = "Private DNS is set to a custom provider",
                         body = "Android will send website lookups straight to that provider, bypassing AppWall's filter in some apps. Set Private DNS to Automatic or Off.",
                         action = "Open settings",
                         onClick = { context.startActivity(Permissions.privateDnsIntent()) },
                     )
-                } else if (sites.isNotEmpty() && !perms.vpnRunning) {
+                } else if (sites.isNotEmpty() && dnsWanted && !perms.vpnRunning) {
                     WarningCard(
-                        title = "Website filter is not running",
-                        body = "Sites are still blocked in your browsers, but in-app browsers may slip through. Turn the filter back on in Settings.",
+                        title = "Strict website blocking is not running",
+                        body = "Sites are still blocked in browsers and in-app browsers. Re-enable the network filter in Settings, or turn it off to hide this.",
                         action = "Settings",
                         onClick = onOpenSettings,
                     )
