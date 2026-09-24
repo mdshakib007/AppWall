@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AppWall</string>
+    <string name="accessibility_service_label">AppWall</string>
+    <string name="accessibility_service_summary">Lets AppWall block the apps and websites you chose</string>
+    <string name="accessibility_service_description">AppWall uses this service only to know which app is in front and which website address is in your browser\'s address bar, so it can show the Blocked screen for the things you chose to block. Nothing is recorded and nothing is sent anywhere: AppWall has no server and no account.</string>
+    <string name="notification_channel_vpn">Website blocking</string>
+    <string name="notification_vpn_title">Website blocking is on</string>
+    <string name="notification_vpn_text">%1$d sites blocked · nothing leaves your phone</string>
+</resources>
