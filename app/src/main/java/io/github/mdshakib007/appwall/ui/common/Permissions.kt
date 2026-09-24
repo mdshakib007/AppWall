@@ -34,8 +34,8 @@ data class PermissionStatus(
     val notifications: Boolean,
     val privateDnsStrict: Boolean,
 ) {
-    /** The two things blocking cannot work without. */
-    val coreReady get() = accessibility && overlay
+    /** Apps need accessibility + overlay; websites need the DNS filter consent. */
+    val coreReady get() = accessibility && overlay && vpnConsent
     val allGood get() = accessibility && overlay && usage
 }
 

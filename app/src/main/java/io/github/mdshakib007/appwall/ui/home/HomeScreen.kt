@@ -125,15 +125,24 @@ fun HomeScreen(
         ) {
             // Protection status
             item {
-                if (!perms.coreReady) {
+                if (!perms.accessibility || !perms.overlay) {
                     WarningCard(
-                        title = "Protection is off",
-                        body = if (!perms.accessibility) "Turn on the AppWall accessibility service so blocking can work."
+                        title = "App blocking is off",
+                        body = if (!perms.accessibility) "Turn on the AppWall accessibility service so apps can be blocked."
                         else "Allow AppWall to display over other apps to show the Blocked screen.",
                         action = "Fix now",
                         onClick = {
                             context.startActivity(if (!perms.accessibility) Permissions.accessibilityIntent() else Permissions.overlayIntent(context))
                         },
+                    )
+                } else if (sites.isNotEmpty() && !perms.vpnRunning) {
+                    WarningCard(
+                        title = "Website blocking is off",
+                        body = if (!dnsWanted) "Turn the website filter back on in Settings; sites are not blocked while it's off."
+                        else if (!perms.vpnConsent) "Website blocking needs a one-time approval. Tap to set it up."
+                        else "The filter isn't running. Open Settings to start it again.",
+                        action = "Fix now",
+                        onClick = onOpenSettings,
                     )
                 } else if (sites.isNotEmpty() && dnsWanted && perms.privateDnsStrict) {
                     WarningCard(
@@ -141,13 +150,6 @@ fun HomeScreen(
                         body = "Android will send website lookups straight to that provider, bypassing AppWall's filter in some apps. Set Private DNS to Automatic or Off.",
                         action = "Open settings",
                         onClick = { context.startActivity(Permissions.privateDnsIntent()) },
-                    )
-                } else if (sites.isNotEmpty() && dnsWanted && !perms.vpnRunning) {
-                    WarningCard(
-                        title = "Strict website blocking is not running",
-                        body = "Sites are still blocked in browsers and in-app browsers. Re-enable the network filter in Settings, or turn it off to hide this.",
-                        action = "Settings",
-                        onClick = onOpenSettings,
                     )
                 }
             }

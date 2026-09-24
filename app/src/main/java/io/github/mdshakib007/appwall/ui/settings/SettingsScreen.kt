@@ -106,14 +106,14 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onPrivacy: () -> Uni
             PermRow("Usage access", "Screen-time insights", perms.usage) { context.startActivity(Permissions.usageIntent()) }
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("Strict website blocking", style = MaterialTheme.typography.bodyLarge)
+                    Text("Website blocking (DNS filter)", style = MaterialTheme.typography.bodyLarge)
                     Text(
                         when {
                             state.focusActive && dnsWanted -> "Locked on by Focus Mode"
                             revoked -> "Stopped: another VPN took over. Turn it back on to re-enable."
-                            vpnRunning -> "On · a local DNS filter also blocks sites for apps themselves. Uses Android's VPN slot; no traffic leaves through it."
+                            vpnRunning -> "On · blocked sites fail to load in every browser and app. Uses Android's VPN slot; no traffic leaves through it."
                             dnsWanted -> "Starting…"
-                            else -> "Off · sites are blocked in browsers and in-app browsers. Turn on to also block them at the network level (uses Android's VPN slot)."
+                            else -> "Off · websites are NOT blocked while this is off."
                         },
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -255,10 +255,10 @@ fun PrivacyScreen(onBack: () -> Unit) {
             Text("Nothing leaves your phone. Here's how you can check.", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
             Point("No server, no account", "There is nothing to sign in to and nowhere to sync. Your blocklist, schedules and statistics live in a small database inside the app's private storage.")
-            Point("The one network permission, explained", "AppWall holds the INTERNET permission for a single reason: strict website blocking must pass lookups that are not blocked on to the DNS resolver your network already uses, and Android refuses to do even that without it. That code lives in one file, DnsFilterVpnService.kt, and nothing else in the app touches the network. It never contacts any other host. With strict blocking off (the default) the app makes no network requests at all.")
+            Point("The one network permission, explained", "AppWall holds the INTERNET permission for a single reason: the website filter must pass lookups that are not blocked on to the DNS resolver your network already uses, and Android refuses to do even that without it. That code lives in one file, DnsFilterVpnService.kt, and nothing else in the app touches the network. It never contacts any other host.")
             Point("Uninstall means gone", "Backups are disabled. Remove the app and everything it stored is deleted with it.")
-            Point("What the accessibility service sees", "Which app is in front, and the website shown in a browser's address bar or in an in-app browser's title bar. It never records keystrokes, messages or page content. The source is public; the whole service is one short file.")
-            Point("Strict website blocking (optional)", "Off by default. When on, a local DNS filter also blocks the sites for apps themselves. Android calls it a VPN, but only DNS lookups pass through it. Blocked names are answered locally with \"does not exist\"; everything else is handed to Android's own resolver unchanged. No other traffic touches it, and nothing is logged.")
+            Point("What the accessibility service sees", "Which app is in front (to block apps), and the address bar of browsers (only to count attempts and measure time per site). It never interrupts your browser, never records keystrokes, messages or page content. The source is public; the whole service is one short file.")
+            Point("How websites are blocked", "A local DNS filter answers lookups for blocked names with \"does not exist\", so the page fails to load in any browser or app, and hands every other lookup to Android's own resolver unchanged. Android calls it a VPN, but only name lookups pass through it. No other traffic touches it, and nothing is logged.")
             Point("What usage access is for", "It powers the Insights tab: how long apps were on screen. Durations only, computed on demand, never stored anywhere else.")
             Spacer(Modifier.height(24.dp))
         }
