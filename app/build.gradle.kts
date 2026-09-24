@@ -13,8 +13,9 @@ android {
         applicationId = "io.github.mdshakib007.appwall"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        // CI passes these from the git tag (see .github/workflows/release.yml); local builds use the defaults.
+        versionCode = (project.findProperty("appVersionCode") as String?)?.toInt() ?: 1
+        versionName = (project.findProperty("appVersionName") as String?) ?: "1.0.0"
         vectorDrawables.useSupportLibrary = true
         // English only for now; keeps resources small. Add locales here when translations land.
         resourceConfigurations += listOf("en")

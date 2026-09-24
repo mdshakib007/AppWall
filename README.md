@@ -1,84 +1,126 @@
 <p align="center">
-  <img src="app/src/main/res/drawable-nodpi/logo.webp" width="120" alt="AppWall logo">
+  <img src="app/src/main/res/drawable-nodpi/logo.webp" width="110" alt="AppWall">
 </p>
 
 <h1 align="center">AppWall</h1>
 
-<p align="center"><b>App &amp; website blocker for Android. Free, open source, no server, no account, no tracking.</b></p>
+<p align="center">
+  <b>App &amp; website blocker for Android.</b><br>
+  Free · Open source · No server · No account · No tracking
+</p>
 
-AppWall keeps you away from the apps and websites that eat your time. Block anything permanently, for a few hours, until a date, or on a daily schedule. When you are serious, turn on **Focus Mode** and lock the whole list for days or weeks with no way out.
+<p align="center">
+  <a href="https://github.com/mdshakib007/AppWall/actions/workflows/build.yml"><img src="https://github.com/mdshakib007/AppWall/actions/workflows/build.yml/badge.svg" alt="Build"></a>
+  <a href="https://github.com/mdshakib007/AppWall/releases/latest"><img src="https://img.shields.io/github/v/release/mdshakib007/AppWall?label=download" alt="Latest release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-orange" alt="MIT"></a>
+</p>
 
-Everything happens on your phone. There is no server to talk to, nothing to sign in to, and nothing to sync. Uninstall the app and every trace of it is gone.
+AppWall keeps you away from the apps and websites that eat your time. Block anything forever, for a few hours, until a date, or on a daily schedule. When you mean it, turn on **Focus Mode** and lock your whole list for days or weeks with no way back.
+
+Everything happens on your phone. There is no server, nothing to sign in to, and nothing to sync. Uninstall the app and every trace of it is gone.
+
+## Download
+
+Grab the latest APK from the [Releases page](https://github.com/mdshakib007/AppWall/releases/latest). Requires Android 10 or newer. The APK is about 3.5 MB.
 
 ## Features
 
-- **Block apps** – pick from installed apps; AppWall suggests the usual time-eaters it finds on your phone.
-- **Block websites** – type a domain, or one-tap popular sites grouped by category. Blocking `facebook.com` also blocks `m.facebook.com`, `bd.facebook.com` and every other subdomain.
-- **Works in every browser** – Chrome, Firefox, Brave, Edge, Opera, Samsung Internet, DuckDuckGo, Vivaldi, Kiwi and more, plus in-app browsers, thanks to two independent layers (see below).
-- **Schedules** – forever, 1 hour to 1 year, a specific date, or daily windows on chosen weekdays (including windows that cross midnight). Editable any time.
-- **Focus Mode** – a one-way commitment: choose a number of days, and every block becomes locked for that period. You can add more, but nothing can be edited or removed, and AppWall keeps you out of its own system-settings pages so there is no quick escape hatch.
-- **Insights** – screen time today and for the week, top apps, top websites, attempts blocked, and an honest estimate of the time you got back (with the formula explained in-app).
-- **Light and dark theme**, orange accent, Material 3, small APK.
+- **Block apps.** Pick from installed apps; AppWall suggests the usual time-eaters it finds on your phone.
+- **Block websites.** Type a domain, or tap popular sites grouped by category. Blocking `facebook.com` also blocks `m.facebook.com`, `bd.facebook.com` and every other subdomain.
+- **Every browser, every in-app browser.** Two independent layers make sure a blocked site stays blocked in Chrome, Firefox, Brave, Edge, Opera, Samsung Internet and the rest, and inside apps like Messenger.
+- **Schedules.** Forever, 1 hour to 1 year, a specific date, or daily time windows on chosen weekdays (windows can cross midnight). Edit any time.
+- **Focus Mode.** A one-way commitment: choose a number of days and every block is locked for that period. You can add more, but nothing can be edited or removed, and AppWall keeps you out of its own system-settings pages so there is no quick escape hatch.
+- **Insights.** Screen time today and this week, top apps, top websites, attempts blocked, and an honest estimate of the time you got back, with the formula explained in the app.
+- **Confirm before you commit.** Suggested apps and sites are staged and applied only when you tap *Block*, so a stray tap during Focus Mode can't lock in something by accident.
+- **Clean and quick.** Light and dark themes, one orange accent, smooth transitions, no bloat.
 
 ## How blocking works
 
-| Layer | Mechanism | What it covers |
+| Layer | Mechanism | Covers |
 |---|---|---|
-| Apps | An accessibility service notices which app comes to the front and shows the *Blocked* screen on top of it. | Every app. |
-| Websites, layer 1 | The same service reads the address bar of known browsers and reacts immediately. | Browsers. |
-| Websites, layer 2 | A local, DNS-only `VpnService`. Only DNS lookups pass through it. Blocked names get `NXDOMAIN`; everything else is handed to Android's own resolver unchanged. | Every app on the phone, including in-app browsers. |
+| Apps | An accessibility service notices which app comes to the front and shows the *Blocked* screen over it. | Every app |
+| Websites, layer 1 | The same service reads the address bar of known browsers and reacts instantly. | Browsers |
+| Websites, layer 2 | A local, DNS-only `VpnService`. Only DNS lookups pass through it. Blocked names get *NXDOMAIN*; everything else is handed to Android's own resolver unchanged. | Every app, including in-app browsers |
 
-The VPN never sees, routes or logs any traffic other than DNS lookups. No other host is ever contacted.
+The VPN never sees, routes or logs any traffic other than DNS lookups, and it never contacts any host other than the resolver your network already uses.
 
-## Privacy, verifiably
+## Privacy, and how to verify it
 
-- **No server, no account, no analytics, no crash reporting.**
-- **Backups are disabled.** Your blocklist and statistics stay in the app's private storage and are deleted on uninstall.
-- **One network permission, one reason.** Android requires `INTERNET` before it will forward DNS lookups on an app's behalf. That is the only thing AppWall uses it for, and the only code that touches the network is [`DnsFilterVpnService.kt`](app/src/main/java/io/github/mdshakib007/appwall/service/DnsFilterVpnService.kt). Turn the website filter off in Settings and the app makes no network requests at all.
-- **The accessibility service** only looks at which package is in front and the text of a browser's address bar. It never records keystrokes, messages or page content. It is [one short file](app/src/main/java/io/github/mdshakib007/appwall/service/AppWallAccessibilityService.kt).
+- **No server, no account, no analytics, no crash reporting, no third-party SDKs.**
+- **Backups are disabled.** Your blocklist and statistics live in the app's private storage and are deleted on uninstall.
+- **One network permission, one reason.** Android will not forward DNS lookups on an app's behalf without the `INTERNET` permission. That is the only thing AppWall uses it for. The only code that touches the network is [`DnsFilterVpnService.kt`](app/src/main/java/io/github/mdshakib007/appwall/service/DnsFilterVpnService.kt). Turn the website filter off in Settings and the app makes no network requests at all.
+- **The accessibility service** looks at two things: which package is in front, and the text in a browser's address bar. It never records keystrokes, messages or page content. It is [one short file](app/src/main/java/io/github/mdshakib007/appwall/service/AppWallAccessibilityService.kt).
 - **Usage access** is optional and only powers the Insights tab.
 
 ### Permissions
 
 | Permission | Why |
 |---|---|
-| Accessibility service | See the foreground app and the browser address bar (required for blocking). |
-| Display over other apps | Show the *Blocked* screen on top of a blocked app (required). |
-| VPN (website filter) | On-device DNS filter for every app, including in-app browsers (recommended). |
-| Usage access | Screen-time insights (optional). |
-| Notifications | Android requires a quiet status notification while the DNS filter runs. |
+| Accessibility service | See the foreground app and the browser address bar. Required for blocking. |
+| Display over other apps | Show the *Blocked* screen on top of a blocked app. Required. |
+| VPN (website filter) | On-device DNS filter for every app, including in-app browsers. Recommended. |
+| Usage access | Screen-time insights. Optional. |
+| Notifications | Android requires a silent status notification while the DNS filter runs. |
 
-## Building
+Known limit: if Private DNS is set to a specific provider in Android's network settings, Android sends lookups straight to that provider and the DNS layer can't see them. AppWall detects this and shows a warning; the browser layer still works.
 
-Requirements: JDK 17, Android SDK 36. Then:
+## Building from source
+
+Requirements: JDK 17 and the Android SDK (platform 36). Then:
 
 ```bash
-./gradlew :app:assembleDebug     # debug APK
-./gradlew :app:assembleRelease   # minified release APK (signed with the debug key unless you configure a keystore)
-./gradlew :app:testDebugUnitTest # unit tests for domain matching, schedules and the DNS codec
+./gradlew :app:assembleDebug        # debug APK  -> app/build/outputs/apk/debug/
+./gradlew :app:testDebugUnitTest    # unit tests: domain matching, schedules, DNS codec
+./gradlew :app:assembleRelease      # minified release APK (debug-signed unless a keystore is configured)
 ```
 
-To sign real releases, provide `APPWALL_KEYSTORE`, `APPWALL_KEYSTORE_PASSWORD`, `APPWALL_KEY_ALIAS` and `APPWALL_KEY_PASSWORD` as Gradle properties or environment variables.
+## Releasing
 
-Minimum Android version: 10 (API 29).
+Nothing runs automatically; both workflows are started by hand from the **Actions** tab.
+
+- **Build** → *Run workflow*: runs the unit tests and builds a debug APK you can download from the run's artifacts.
+- **Release** → *Run workflow* → enter a version such as `1.2.3`: runs the tests, builds a signed release APK, creates the tag `v1.2.3` on the selected branch, and publishes a GitHub Release with the APK, its SHA-256, and auto-generated notes.
+
+The version name is what you typed and the version code is derived from it (`1.2.3` → `10203`), so keep versions ascending.
+
+### One-time signing setup
+
+1. Create a keystore (keep it safe; losing it means users can't update in place):
+
+   ```bash
+   keytool -genkeypair -v -keystore release.jks -alias appwall -keyalg RSA -keysize 4096 -validity 10000
+   ```
+
+2. Add four repository secrets under *Settings → Secrets and variables → Actions*:
+
+   | Secret | Value |
+   |---|---|
+   | `APPWALL_KEYSTORE_BASE64` | output of `base64 -i release.jks` |
+   | `APPWALL_KEYSTORE_PASSWORD` | keystore password |
+   | `APPWALL_KEY_ALIAS` | `appwall` (or whatever you chose) |
+   | `APPWALL_KEY_PASSWORD` | key password |
+
+Until the secrets exist, release builds are signed with a throwaway debug key, which is fine for testing but not for distributing.
 
 ## Project layout
 
 ```
 app/src/main/java/io/github/mdshakib007/appwall/
-├── core/        pure logic: domain matching, schedule rules, DNS codec, block state, savings model
-├── data/        Room database, DataStore prefs, usage stats, installed apps, curated catalogs
-├── service/     accessibility service, DNS-filter VpnService, boot receiver
-└── ui/          Jetpack Compose screens (onboarding, home, add, detail, focus, insights, settings, blocked)
+├── core/      pure logic: domain matching, schedule rules, DNS codec, block state, savings model
+├── data/      Room database, DataStore prefs, usage stats, installed apps, curated catalogs
+├── service/   accessibility service, DNS-filter VpnService, boot receiver
+└── ui/        Jetpack Compose screens and the shared design components
 ```
+
+Stack: Kotlin, Jetpack Compose, Material 3, Room, DataStore, Coroutines. No other dependencies.
 
 ## Contributing
 
-Issues and pull requests are welcome. Good first contributions:
+Issues and pull requests are welcome. Easy wins:
 
-- Add the address-bar view id of a browser that is not yet in `Catalog.browserUrlBarIds`.
+- Add the address-bar view id of a browser that is missing from `Catalog.browserUrlBarIds`.
 - Add popular sites or apps to `Catalog.kt`.
-- Translations (strings are in `res/values/strings.xml` and, for now, in the Compose screens).
+- Translations.
 
 Please keep the two promises that define this project: **no network calls except DNS forwarding, and no third-party SDKs.**
 

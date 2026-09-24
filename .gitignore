@@ -13,6 +13,3 @@
 *.apk
 *.aab
 *.log
-
-# Reference screenshots from other apps (inspiration only, not ours to publish)
-Screenshot_*.jpg
