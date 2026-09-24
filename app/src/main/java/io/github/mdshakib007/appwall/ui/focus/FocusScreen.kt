@@ -33,8 +33,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -62,6 +60,7 @@ import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.core.BlockRules
 import io.github.mdshakib007.appwall.data.db.BlockType
 import io.github.mdshakib007.appwall.data.db.FocusSession
+import io.github.mdshakib007.appwall.ui.common.AppTopBar
 import io.github.mdshakib007.appwall.ui.common.BigButton
 import io.github.mdshakib007.appwall.ui.common.ChoiceChip
 import io.github.mdshakib007.appwall.ui.common.Format
@@ -80,9 +79,8 @@ fun FocusScreen(bottomPadding: Dp, onAdd: () -> Unit) {
     val active = state.focus?.takeIf { BlockRules.isFocusActive(it, now) }
 
     Column(Modifier.fillMaxSize()) {
-        TopAppBar(
+        AppTopBar(
             title = { Text("Focus Mode", fontWeight = FontWeight.Bold) },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
         )
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = bottomPadding + 24.dp)) {
             if (active != null) ActiveFocus(active, now, state.items.size, onAdd) else StartFocus(state.items.size, now)

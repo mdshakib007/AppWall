@@ -204,6 +204,23 @@ fun SmallButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
     ) { Text(text, style = MaterialTheme.typography.labelLarge, color = Color.White) }
 }
 
+/** Compact 52dp top bar shared by every screen (Material's default is 64dp). */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+fun AppTopBar(
+    title: @Composable () -> Unit,
+    navigationIcon: @Composable () -> Unit = {},
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    androidx.compose.material3.TopAppBar(
+        title = title,
+        navigationIcon = navigationIcon,
+        actions = actions,
+        expandedHeight = 52.dp,
+        colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
+    )
+}
+
 @Composable
 fun RowScope.Gap(width: Int = 12) = Spacer(Modifier.width(width.dp))
 

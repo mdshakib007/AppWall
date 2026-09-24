@@ -54,8 +54,6 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -80,6 +78,7 @@ import io.github.mdshakib007.appwall.core.Domains
 import io.github.mdshakib007.appwall.data.Catalog
 import io.github.mdshakib007.appwall.data.InstalledApp
 import io.github.mdshakib007.appwall.data.db.BlockType
+import io.github.mdshakib007.appwall.ui.common.AppTopBar
 import io.github.mdshakib007.appwall.ui.common.AppIcon
 import io.github.mdshakib007.appwall.ui.common.BigButton
 import io.github.mdshakib007.appwall.ui.common.Pill
@@ -116,10 +115,9 @@ fun AddScreen(initialTab: Int, onBack: () -> Unit) {
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             Column {
-                TopAppBar(
+                AppTopBar(
                     title = { Text("Block something", fontWeight = FontWeight.Bold) },
                     navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 )
                 PrimaryTabRow(selectedTabIndex = tab, containerColor = MaterialTheme.colorScheme.background) {
                     Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("Websites") })

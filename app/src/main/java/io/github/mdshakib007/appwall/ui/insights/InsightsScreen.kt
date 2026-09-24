@@ -30,8 +30,6 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import io.github.mdshakib007.appwall.ui.Emphasized
@@ -56,6 +54,7 @@ import androidx.compose.ui.unit.dp
 import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.core.Savings
 import io.github.mdshakib007.appwall.data.AppUsage
+import io.github.mdshakib007.appwall.ui.common.AppTopBar
 import io.github.mdshakib007.appwall.ui.common.AppIcon
 import io.github.mdshakib007.appwall.ui.common.BigButton
 import io.github.mdshakib007.appwall.ui.common.Format
@@ -118,9 +117,8 @@ fun InsightsScreen(bottomPadding: Dp) {
     val saved = Savings.total(state.items, attemptsByKey, now)
 
     Column(Modifier.fillMaxSize()) {
-        TopAppBar(
+        AppTopBar(
             title = { Text("Insights", fontWeight = FontWeight.Bold) },
-            colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
         )
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(bottom = bottomPadding + 24.dp)) {
             // Time saved hero

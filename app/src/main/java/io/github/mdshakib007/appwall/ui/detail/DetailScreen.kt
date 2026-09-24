@@ -38,8 +38,6 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -61,6 +59,7 @@ import io.github.mdshakib007.appwall.core.BlockRules
 import io.github.mdshakib007.appwall.core.Savings
 import io.github.mdshakib007.appwall.data.db.BlockItem
 import io.github.mdshakib007.appwall.data.db.BlockType
+import io.github.mdshakib007.appwall.ui.common.AppTopBar
 import io.github.mdshakib007.appwall.ui.common.AppIcon
 import io.github.mdshakib007.appwall.ui.common.BigButton
 import io.github.mdshakib007.appwall.ui.common.ChoiceChip
@@ -110,10 +109,9 @@ fun DetailScreen(id: Long, onBack: () -> Unit) {
         containerColor = MaterialTheme.colorScheme.background,
         snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
-            TopAppBar(
+            AppTopBar(
                 title = { Text(it?.displayName ?: "", fontWeight = FontWeight.Bold) },
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Rounded.ArrowBack, "Back") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
             )
         },
     ) { inner ->

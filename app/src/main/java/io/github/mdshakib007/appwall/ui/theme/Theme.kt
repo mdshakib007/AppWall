@@ -6,8 +6,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
+import android.app.Activity
+import androidx.core.view.WindowCompat
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
@@ -30,6 +34,18 @@ fun AppWallTheme(
         ThemeMode.SYSTEM -> isSystemInDarkTheme()
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
+    }
+    // Status/navigation bar icons must follow the app's resolved theme, not the system's: the user can pick
+    // Dark in-app while the phone is in light mode (or vice versa).
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            (view.context as? Activity)?.window?.let { window ->
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !dark
+                controller.isAppearanceLightNavigationBars = !dark
+            }
+        }
     }
     CompositionLocalProvider(LocalIsDark provides dark) {
         MaterialTheme(
