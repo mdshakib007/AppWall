@@ -3,14 +3,10 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <!--
-      PRIVACY NOTE ON android.permission.INTERNET
-      AppWall has no server, no account and no analytics. The INTERNET permission exists for exactly one
-      reason: the website filter (service/DnsFilterVpnService.kt) must hand DNS lookups that are NOT blocked
-      to the DNS resolver your network already uses, and Android refuses to do even that without this
-      permission. No other class in this app touches the network. Grep the source for "Dns" to verify.
+      PRIVACY NOTE: AppWall deliberately does NOT request android.permission.INTERNET. It has no server, no account
+      and no analytics, and without this permission the operating system makes it impossible for the app to open a
+      network connection at all.
     -->
-    <uses-permission android:name="android.permission.INTERNET" />
-
     <!-- See which app is in the foreground (via the accessibility service) and list apps to block -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -19,14 +15,6 @@
         tools:ignore="ProtectedPermissions" />
     <!-- Show the "Blocked" screen on top of a blocked app -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
-    <!-- Local DNS filter (VpnService). Routes only DNS through a local tunnel, nothing else. -->
-    <!-- ACCESS_NETWORK_STATE only reads which DNS server the phone already uses and whether Private DNS is on. -->
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SYSTEM_EXEMPTED" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Restart protection after reboot -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".AppWallApp"
@@ -74,23 +62,5 @@
                 android:resource="@xml/accessibility_service_config" />
         </service>
 
-        <service
-            android:name=".service.DnsFilterVpnService"
-            android:exported="false"
-            android:foregroundServiceType="systemExempted"
-            android:permission="android.permission.BIND_VPN_SERVICE">
-            <intent-filter>
-                <action android:name="android.net.VpnService" />
-            </intent-filter>
-        </service>
-
-        <receiver
-            android:name=".service.BootReceiver"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
-            </intent-filter>
-        </receiver>
     </application>
 </manifest>

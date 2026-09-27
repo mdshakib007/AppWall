@@ -4,6 +4,8 @@ import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -11,22 +13,29 @@ import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import android.view.accessibility.AccessibilityWindowInfo
 import android.view.inputmethod.InputMethodManager
 import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.core.Domains
 import io.github.mdshakib007.appwall.data.Catalog
 import io.github.mdshakib007.appwall.data.db.BlockItem
 import io.github.mdshakib007.appwall.ui.blocked.BlockedActivity
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 /**
- * The eyes of AppWall. It only ever looks at two things:
- *  1. which package owns the window in front (to block apps, and to guard Settings during Focus Mode),
- *  2. the text of the address bar in browsers (statistics only: time per site and blocked attempts).
- * Websites themselves are blocked by the DNS filter, never by interrupting the browser.
- * It never reads anything else, never stores page content, and cannot send anything anywhere.
+ * The whole enforcement layer of AppWall. It looks at exactly three things:
+ *
+ *  1. which package owns the window in front, to block apps (and to guard Settings during Focus Mode);
+ *  2. the address bar of browsers, to block websites: the moment a blocked address is *committed* (typed and
+ *     entered, or reached through a link) the navigation is cancelled with BACK, so the page never shows. Nothing
+ *     is drawn over the browser and nothing happens while the user is still typing in the address bar;
+ *  3. the title strip of in-app browsers (Messenger, Facebook, Instagram, ...), for the same purpose.
+ *
+ * It never reads page content, never records what is typed, and has no way to send anything anywhere: the app
+ * holds no network permission at all.
  */
 class AppWallAccessibilityService : AccessibilityService() {
 
@@ -47,22 +56,64 @@ class AppWallAccessibilityService : AccessibilityService() {
             "com.android.packageinstaller", "com.google.android.packageinstaller",
         )
         private val SETTINGS_DANGER_WORDS = listOf(
-            "uninstall", "force stop", "turn off", "disconnect", "forget", "disable", "off", "clear storage", "clear data", "shortcut",
+            "uninstall", "force stop", "turn off", "disable", "off", "clear storage", "clear data", "shortcut",
         )
+
+        /** How often at most we read a browser's address bar / an app's title strip. */
+        private const val BROWSER_CHECK_GAP_MS = 200L
+        private const val IN_APP_CHECK_GAP_MS = 300L
+        /** After each BACK, wait this long before checking whether the blocked page is really gone. */
+        private const val VERIFY_DELAY_MS = 250L
+        /** URL loaded into a browser we had to bring back after BACK minimised it (see [recoverMinimisedBrowser]). */
+        private const val BLANK_URL = "about:blank"
+        /** Give up on BACK after this many tries and send the browser home instead. */
+        private const val MAX_BACKS = 4
+        /** Only this part of the screen (from the top) is searched for an in-app browser's address strip. */
+        private const val STRIP_FRACTION = 0.30f
+        /** An in-app browser's web view must cover at least this much of the screen height. */
+        private const val MIN_WEBVIEW_FRACTION = 0.35f
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val rect = Rect()
     private var imePackages: Set<String> = emptySet()
+    private var screenHeight = 0
+    private var stateJob: Job? = null
+
+    private var currentForeground: String? = null
+    private var homePackage: String? = null
     private var lastShownKey: String? = null
     private var lastShownAt = 0L
-    private var lastBrowserCheckAt = 0L
-
     private var lastSettingsCheckAt = 0L
 
-    // Website time tracking (for Insights): which domain is currently visible in a browser.
+    // Coalesced checks: many events arrive per navigation; we read the window at most every N ms, but always
+    // once more after the last event of a burst so nothing is missed.
+    private var browserCheckPending = false
+    private var lastBrowserCheckAt = 0L
+    private var pendingBrowserPkg: String? = null
+    private var inAppCheckPending = false
+    private var lastInAppCheckAt = 0L
+    private var pendingInAppPkg: String? = null
+
+    /** A website block in progress: BACK has been sent, we are waiting to confirm the page is gone. */
+    private class Enforcement(val pkg: String, val host: String, val inApp: Boolean, val customTab: Boolean) {
+        var backs = 0
+        val startedAt = SystemClock.uptimeMillis()
+    }
+    private var enforcing: Enforcement? = null
+    /** Last time BACK made a browser leave the screen: the same browser and site again within 15 s means it is bouncing. */
+    private var lastGoneKey: String? = null
+    private var lastGoneAt = 0L
+    /** Package -> whether its front window is a Custom Tab (Chrome's CustomTabActivity, Firefox's ExternalAppBrowserActivity). */
+    private val customTabFront = HashMap<String, Boolean>(4)
+    private enum class Outcome { BLOCKED, CLEAR, GONE }
+
+    // Website time tracking (Insights): which domain is currently visible in a browser.
     private var currentSite: String? = null
     private var currentSiteSince = 0L
-    private var currentForeground: String? = null
+
+    /** What a browser's address bar currently shows. [editing] = the user is typing in it right now. */
+    private class AddressBar(val host: String?, val editing: Boolean)
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -70,10 +121,18 @@ class AppWallAccessibilityService : AccessibilityService() {
         serviceInfo = serviceInfo?.apply {
             eventTypes = AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
             flags = flags or AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS or AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
-            notificationTimeout = 80
+            notificationTimeout = 50
         }
         refreshImes()
+        screenHeight = resources.displayMetrics.heightPixels
+        homePackage = packageManager.resolveActivity(
+            Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), android.content.pm.PackageManager.MATCH_DEFAULT_ONLY,
+        )?.activityInfo?.packageName
+        Log.i(TAG, "home launcher: $homePackage")
         _connected.value = true
+        // Re-evaluate whatever is in front whenever the rules change (item added, schedule boundary, focus started).
+        stateJob?.cancel()
+        stateJob = Graph.scope.launch { Graph.engine.stateFlow.collect { mainHandler.post { recheck() } } }
         Log.i(TAG, "connected")
     }
 
@@ -92,32 +151,23 @@ class AppWallAccessibilityService : AccessibilityService() {
         if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
             if (pkg != currentForeground) {
                 currentForeground = pkg
-                Graph.foregroundPackage = pkg
                 if (!isBrowser(pkg)) endSiteSession(now)
             }
+            event.className?.toString()?.takeIf { it.endsWith("Activity") }?.let { cls ->
+                customTabFront[pkg] = cls.contains("CustomTab") || cls.contains("ExternalAppBrowser")
+            }
             state.blockedItemForPackage(pkg)?.let { item ->
-                block(item, pkg, isApp = true)
+                blockApp(item, pkg)
                 return
             }
         }
 
-        // 2. Browser address bar: observe only. Websites are blocked by the DNS filter (the page simply fails to
-        //    load), so the user keeps full control of the address bar. Here we just keep statistics honest:
-        //    time per site, and one "attempt" when a blocked site is visited.
+        // 2. Websites: real browsers by address bar, everything else by in-app browser title strip.
         if (isBrowser(pkg)) {
-            val mono = SystemClock.uptimeMillis()
-            if (mono - lastBrowserCheckAt < 250) return
-            lastBrowserCheckAt = mono
-            val host = readAddressBarHost(pkg) ?: return
-            val blockedItem = state.blockedItemForHost(host)
-            if (blockedItem != null) {
-                endSiteSession(now)
-                Graph.scope.launch { Graph.repo.recordAttempt(blockedItem, minGapMs = 30_000) }
-            } else {
-                trackSite(host, now)
-            }
+            scheduleBrowserCheck(pkg)
             return
         }
+        if (state.blockedDomains.isNotEmpty() && pkg !in SETTINGS_PACKAGES && pkg != homePackage) scheduleInAppCheck(pkg)
 
         // 3. Focus-mode guard: keep the user out of AppWall's own Settings pages.
         if (state.focusActive && pkg in SETTINGS_PACKAGES) {
@@ -131,20 +181,38 @@ class AppWallAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** Rules changed: look again at whatever is in front right now. */
+    private fun recheck() {
+        // Ask the system what is in front rather than trusting the last event: right after (re)connecting, or a
+        // reboot, no window event has been seen yet, but a blocked page may already be on screen.
+        val active = rootInActiveWindow
+        val activePkg = active?.packageName?.toString()
+        active?.recycleCompat()
+        val pkg = activePkg?.takeUnless { it == packageName || it == "com.android.systemui" || it in imePackages }
+            ?: currentForeground ?: return
+        if (pkg != currentForeground) { currentForeground = pkg; if (!isBrowser(pkg)) endSiteSession(System.currentTimeMillis()) }
+        val state = Graph.engine.state
+        state.blockedItemForPackage(pkg)?.let { blockApp(it, pkg); return }
+        if (isBrowser(pkg)) scheduleBrowserCheck(pkg)
+        else if (state.blockedDomains.isNotEmpty() && pkg !in SETTINGS_PACKAGES && pkg != homePackage) scheduleInAppCheck(pkg)
+    }
+
     private fun isBrowser(pkg: String): Boolean =
         Catalog.browserUrlBarIds.containsKey(pkg) || pkg in Graph.installedApps.browserPackages()
 
-    private fun block(item: BlockItem, key: String, isApp: Boolean) {
+    // --- Apps ----------------------------------------------------------------------------------------
+
+    private fun blockApp(item: BlockItem, pkg: String) {
         val mono = SystemClock.uptimeMillis()
-        if (lastShownKey == key && mono - lastShownAt < 1500) return
-        lastShownKey = key
+        if (lastShownKey == pkg && mono - lastShownAt < 1500) return
+        lastShownKey = pkg
         lastShownAt = mono
         Graph.scope.launch { Graph.repo.recordAttempt(item) }
-        // Kick the offender out first (HOME for apps; the browser already got BACK), then show the Blocked
-        // screen a beat later so it lands on top of the launcher instead of racing the HOME action.
-        if (isApp) performGlobalAction(GLOBAL_ACTION_HOME)
+        // Kick the app out first, then show the Blocked screen a beat later so it lands on top of the launcher
+        // instead of racing the HOME action.
+        performGlobalAction(GLOBAL_ACTION_HOME)
         if (Settings.canDrawOverlays(this)) {
-            mainHandler.postDelayed({ BlockedActivity.show(this, item, if (isApp) null else key) }, if (isApp) 250 else 0)
+            mainHandler.postDelayed({ BlockedActivity.show(this, item) }, 250)
         }
     }
 
@@ -155,41 +223,322 @@ class AppWallAccessibilityService : AccessibilityService() {
         BlockedActivity.showProtected(this)
     }
 
-    // --- Address bar reading -----------------------------------------------------------------------
+    // --- Websites: scheduling ------------------------------------------------------------------------
 
-    private fun readAddressBarHost(pkg: String): String? {
-        val root = rootInActiveWindow ?: return null
+    private fun scheduleBrowserCheck(pkg: String) {
+        pendingBrowserPkg = pkg
+        if (browserCheckPending) return
+        browserCheckPending = true
+        val wait = (lastBrowserCheckAt + BROWSER_CHECK_GAP_MS - SystemClock.uptimeMillis()).coerceIn(0L, BROWSER_CHECK_GAP_MS)
+        mainHandler.postDelayed({
+            browserCheckPending = false
+            lastBrowserCheckAt = SystemClock.uptimeMillis()
+            pendingBrowserPkg?.let { checkBrowser(it) }
+        }, wait)
+    }
+
+    private fun scheduleInAppCheck(pkg: String) {
+        pendingInAppPkg = pkg
+        if (inAppCheckPending) return
+        inAppCheckPending = true
+        val wait = (lastInAppCheckAt + IN_APP_CHECK_GAP_MS - SystemClock.uptimeMillis()).coerceIn(0L, IN_APP_CHECK_GAP_MS)
+        mainHandler.postDelayed({
+            inAppCheckPending = false
+            lastInAppCheckAt = SystemClock.uptimeMillis()
+            pendingInAppPkg?.let { checkInApp(it) }
+        }, wait)
+    }
+
+    // --- Websites: detection -------------------------------------------------------------------------
+
+    private fun checkBrowser(pkg: String) {
+        if (enforcing != null) return // already kicking a page out; the verify step re-reads the bar
+        val bar = readAddressBar(pkg) ?: return
+        if (bar.editing) return // the user is typing; a URL is only a visit once it is committed
+        val host = bar.host ?: return
+        val item = Graph.engine.state.blockedItemForHost(host)
+        if (item != null) startEnforcement(pkg, item, host, inApp = false)
+        else trackSite(host, System.currentTimeMillis())
+    }
+
+    private fun checkInApp(pkg: String) {
+        if (enforcing != null) return
+        val state = Graph.engine.state
+        if (state.blockedDomains.isEmpty()) return
+        val root = windowRootFor(pkg) ?: return
         try {
-            Catalog.browserUrlBarIds[pkg]?.forEach { id ->
-                val nodes = root.findAccessibilityNodeInfosByViewId(id)
-                for (n in nodes) {
-                    val text = n.text?.toString()
-                    n.recycleCompat()
-                    val host = text?.let { Domains.hostFromAddressBar(it) }
-                    if (host != null) return host
-                }
-            }
-            // Unknown browser: look for an editable field whose text looks like a URL.
-            return findUrlHeuristically(root, 0)
+            val found = findHostInTopStrip(root) ?: return
+            val item = state.blockedItemForHost(found.host) ?: return
+            // A bare host in the title strip is only an in-app browser if a big web view sits below it.
+            // (A link pasted in a chat, or a post caption, never comes with one.)
+            if (!hasLargeWebViewBelow(root, found.top)) return
+            startEnforcement(pkg, item, found.host, inApp = true)
         } finally {
             root.recycleCompat()
         }
     }
 
-    private fun findUrlHeuristically(node: AccessibilityNodeInfo, depth: Int): String? {
-        if (depth > 12) return null
-        val cls = node.className?.toString() ?: ""
-        if (cls.endsWith("EditText") || cls.endsWith("TextView") && node.isClickable) {
-            node.text?.toString()?.let { t -> Domains.hostFromAddressBar(t)?.let { return it } }
+    // --- Websites: enforcement -----------------------------------------------------------------------
+
+    /**
+     * Gets the blocked page out of sight without drawing anything over the browser: BACK cancels a navigation
+     * that is still pending and returns an already-open page to the previous one. We then look again and repeat a
+     * few times (a dialog or the keyboard may have eaten the first BACK), and as a last resort send the app home.
+     */
+    private fun startEnforcement(pkg: String, item: BlockItem, host: String, inApp: Boolean) {
+        endSiteSession(System.currentTimeMillis())
+        enforcing = Enforcement(pkg, host, inApp, customTab = customTabFront[pkg] == true)
+        Graph.scope.launch { Graph.repo.recordAttempt(item) }
+        Log.i(TAG, "blocking $host in $pkg")
+        sendBackAndVerify()
+    }
+
+    private fun sendBackAndVerify() {
+        val e = enforcing ?: return
+        e.backs++
+        performGlobalAction(GLOBAL_ACTION_BACK)
+        mainHandler.postDelayed(::verifyEnforcement, VERIFY_DELAY_MS)
+    }
+
+    private fun verifyEnforcement() {
+        val e = enforcing ?: return
+        val t0 = SystemClock.uptimeMillis()
+        val outcome = outcome(e)
+        Log.i(TAG, "verify ${e.host}: $outcome after ${e.backs} back(s), ${t0 - e.startedAt} ms since start, read took ${SystemClock.uptimeMillis() - t0} ms")
+        when (outcome) {
+            Outcome.CLEAR -> enforcing = null
+            Outcome.GONE -> {
+                enforcing = null
+                // BACK on a tab with no history makes Chrome (and others) minimise, keeping the blocked tab as the
+                // current one: the next launch would show it again and bounce again, forever. If that is what just
+                // happened (we are looking at the launcher, or the same browser bounced off the same site a moment
+                // ago), bring the browser back on a blank tab instead. A Custom Tab, or a tab another app opened for
+                // a link, is simply closed by BACK and the user is back in that app: nothing more to do.
+                val mono = SystemClock.uptimeMillis()
+                val key = e.pkg + "|" + e.host
+                val bouncing = lastGoneKey == key && mono - lastGoneAt < 15_000
+                lastGoneKey = key; lastGoneAt = mono
+                if (!e.inApp && !e.customTab && (bouncing || foregroundIsHome())) recoverMinimisedBrowser(e.pkg)
+                else Log.i(TAG, "${e.pkg} left the screen")
+            }
+            Outcome.BLOCKED -> if (e.backs < MAX_BACKS) sendBackAndVerify() else {
+                enforcing = null
+                Log.w(TAG, "BACK did not clear ${e.host}; sending ${e.pkg} home")
+                performGlobalAction(GLOBAL_ACTION_HOME)
+            }
         }
-        val count = node.childCount
-        for (i in 0 until minOf(count, 40)) {
-            val child = node.getChild(i) ?: continue
-            val r = findUrlHeuristically(child, depth + 1)
-            child.recycleCompat()
-            if (r != null) return r
+    }
+
+    private fun outcome(e: Enforcement): Outcome {
+        val state = Graph.engine.state
+        // Decide "gone" from the active window alone. Scanning all windows here can stall for seconds on the
+        // browser's disappearing window and then report a stale root, which misses the minimised case.
+        val active = rootInActiveWindow ?: return Outcome.GONE
+        val activePkg = active.packageName?.toString()
+        if (activePkg != e.pkg) { active.recycleCompat(); return Outcome.GONE }
+        val root = active
+        try {
+            if (e.inApp) {
+                val found = findHostInTopStrip(root) ?: return Outcome.CLEAR
+                return if (state.blockedItemForHost(found.host) != null) Outcome.BLOCKED else Outcome.CLEAR
+            }
+            val bar = readAddressBar(e.pkg, root) ?: return Outcome.CLEAR
+            if (bar.editing || bar.host == null) return Outcome.CLEAR
+            return if (state.blockedItemForHost(bar.host) != null) Outcome.BLOCKED else Outcome.CLEAR
+        } finally {
+            root.recycleCompat()
+        }
+    }
+
+    private fun foregroundIsHome(): Boolean {
+        val home = homePackage ?: return false
+        val active = rootInActiveWindow
+        if (active != null) {
+            val p = active.packageName?.toString()
+            active.recycleCompat()
+            if (p != null) return p == home
+        }
+        return currentForeground == home
+    }
+
+    /**
+     * Re-opens [pkg] on a blank page. The intent carries our package as the "application id", which browsers use
+     * to reuse the tab they created for us last time instead of piling up blank tabs. The blocked tab stays in the
+     * tab list (no app can close another app's tabs) but is no longer the one on screen.
+     */
+    private fun recoverMinimisedBrowser(pkg: String) {
+        Log.i(TAG, "$pkg minimised with the blocked tab still current; reopening it on a blank tab")
+        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(BLANK_URL))
+            .setPackage(pkg)
+            .putExtra("com.android.browser.application_id", packageName)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        runCatching { startActivity(intent) }.onFailure { Log.w(TAG, "could not reopen $pkg: $it") }
+    }
+
+    // --- Reading windows -----------------------------------------------------------------------------
+
+    /** Root of [pkg]'s window: the active one if it belongs to [pkg], otherwise any visible app window of [pkg]. */
+    private fun windowRootFor(pkg: String): AccessibilityNodeInfo? {
+        rootInActiveWindow?.let { active ->
+            if (active.packageName?.toString() == pkg) return active
+            active.recycleCompat()
+        }
+        val list = runCatching { windows }.getOrNull() ?: return null
+        for (w in list) {
+            if (w.type != AccessibilityWindowInfo.TYPE_APPLICATION) continue
+            val r = w.root ?: continue
+            if (r.packageName?.toString() == pkg) return r
+            r.recycleCompat()
         }
         return null
+    }
+
+    private fun readAddressBar(pkg: String): AddressBar? {
+        val root = windowRootFor(pkg) ?: return null
+        try {
+            return readAddressBar(pkg, root)
+        } finally {
+            root.recycleCompat()
+        }
+    }
+
+    private fun readAddressBar(pkg: String, root: AccessibilityNodeInfo): AddressBar? {
+        val ids = Catalog.browserUrlBarIds[pkg]
+            ?: return findUrlFieldInEdges(root) // no view id known: URL-looking field along the top or bottom edge
+        for (id in ids) {
+            if (!id.contains(":id/")) continue // Compose tags can't be looked up this way, see below
+            for (n in root.findAccessibilityNodeInfosByViewId(id)) {
+                try {
+                    readUrlNode(n)?.let { return it }
+                } finally {
+                    n.recycleCompat()
+                }
+            }
+        }
+        // Compose toolbars (Firefox 15x): the tag is only visible as the node's id name while walking the tree.
+        if (ids.any { !it.contains(":id/") }) findNodeByIdName(root, ids)?.let { n ->
+            try {
+                readUrlNode(n)?.let { return it }
+            } finally {
+                n.recycleCompat()
+            }
+        }
+        return null // known browser but its bar is not on screen (or shows a search / new tab)
+    }
+
+    /** Interprets one address-bar node. Null when it shows nothing URL-like (hint text, a search, a new tab). */
+    private fun readUrlNode(n: AccessibilityNodeInfo): AddressBar? {
+        if (n.isFocused && n.isEditable) return AddressBar(null, editing = true)
+        val showingHint = Build.VERSION.SDK_INT >= 26 && n.isShowingHintText
+        val text = if (showingHint) null else n.text?.toString()?.takeIf { it.isNotBlank() }
+        // Text wins. Only a bar with no text at all (Compose toolbars) is read through its description, so a
+        // search query typed into Chrome's bar can never be mistaken for a visit.
+        val host = if (text != null) Domains.hostFromAddressBar(text)
+        else n.contentDescription?.toString()?.let { Domains.hostFromAddressBarDescription(it) }
+        return host?.let { AddressBar(it, editing = false) }
+    }
+
+    private fun findNodeByIdName(root: AccessibilityNodeInfo, ids: List<String>): AccessibilityNodeInfo? {
+        var result: AccessibilityNodeInfo? = null
+        val budget = intArrayOf(500)
+        fun walk(node: AccessibilityNodeInfo, depth: Int) {
+            if (result != null || depth > 20 || --budget[0] < 0 || isWebView(node)) return
+            val name = node.viewIdResourceName
+            if (name != null && ids.any { it == name || name.endsWith("/$it") }) { result = AccessibilityNodeInfo.obtain(node); return }
+            for (i in 0 until minOf(node.childCount, 60)) {
+                val c = node.getChild(i) ?: continue
+                walk(c, depth + 1)
+                c.recycleCompat()
+                if (result != null) return
+            }
+        }
+        walk(root, 0)
+        return result
+    }
+
+    private fun isWebView(node: AccessibilityNodeInfo): Boolean = node.className?.toString()?.endsWith("WebView") == true
+
+    /** Unknown browsers: an EditText (or clickable TextView) whose whole text is a URL, in the top or bottom 20%. */
+    private fun findUrlFieldInEdges(root: AccessibilityNodeInfo): AddressBar? {
+        val top = (screenHeight * 0.20f).toInt()
+        val bottom = screenHeight - top
+        var result: AddressBar? = null
+        val budget = intArrayOf(400)
+        fun walk(node: AccessibilityNodeInfo, depth: Int) {
+            if (result != null || depth > 18 || --budget[0] < 0 || isWebView(node)) return
+            node.getBoundsInScreen(rect)
+            if (rect.top < top || rect.bottom > bottom) {
+                val cls = node.className?.toString() ?: ""
+                val candidate = cls.endsWith("EditText") || (cls.endsWith("TextView") && node.isClickable)
+                if (candidate && rect.height() in 1..top) {
+                    if (node.isFocused && cls.endsWith("EditText")) { result = AddressBar(null, editing = true); return }
+                    val hint = Build.VERSION.SDK_INT >= 26 && node.isShowingHintText
+                    val host = if (hint) null else node.text?.toString()?.let { Domains.hostFromAddressBar(it) }
+                    if (host != null) { result = AddressBar(host, editing = false); return }
+                }
+            }
+            for (i in 0 until minOf(node.childCount, 60)) {
+                val c = node.getChild(i) ?: continue
+                walk(c, depth + 1)
+                c.recycleCompat()
+                if (result != null) return
+            }
+        }
+        walk(root, 0)
+        return result
+    }
+
+    private class StripHit(val host: String, val top: Int)
+
+    /**
+     * In-app browsers show the page's host in a strip at the top of the screen (or of their sheet). Finds a node
+     * there whose whole text (or description) is a bare host / URL, never descending into web content.
+     */
+    private fun findHostInTopStrip(root: AccessibilityNodeInfo): StripHit? {
+        val limitY = (screenHeight * STRIP_FRACTION).toInt()
+        var result: StripHit? = null
+        val budget = intArrayOf(300)
+        fun walk(node: AccessibilityNodeInfo, depth: Int) {
+            if (result != null || depth > 18 || --budget[0] < 0 || isWebView(node)) return
+            node.getBoundsInScreen(rect)
+            if (rect.top > limitY) return // this node and everything under it is lower on screen
+            if (!(node.isEditable && node.isFocused) && rect.height() in 1..limitY) {
+                val host = node.text?.toString()?.let { Domains.hostFromToolbarText(it) }
+                    ?: node.contentDescription?.toString()?.let { Domains.hostFromToolbarText(it) }
+                if (host != null) { result = StripHit(host, rect.top); return }
+            }
+            for (i in 0 until minOf(node.childCount, 60)) {
+                val c = node.getChild(i) ?: continue
+                walk(c, depth + 1)
+                c.recycleCompat()
+                if (result != null) return
+            }
+        }
+        walk(root, 0)
+        return result
+    }
+
+    /** True when the window holds a web view at least [MIN_WEBVIEW_FRACTION] of the screen tall, starting at or below [minTop]. */
+    private fun hasLargeWebViewBelow(root: AccessibilityNodeInfo, minTop: Int): Boolean {
+        val minHeight = (screenHeight * MIN_WEBVIEW_FRACTION).toInt()
+        var found = false
+        val budget = intArrayOf(600)
+        fun walk(node: AccessibilityNodeInfo, depth: Int) {
+            if (found || depth > 22 || --budget[0] < 0) return
+            if (isWebView(node)) {
+                node.getBoundsInScreen(rect)
+                if (rect.height() >= minHeight && rect.top >= minTop - 8) found = true
+                return // web content itself is never inspected
+            }
+            for (i in 0 until minOf(node.childCount, 60)) {
+                val c = node.getChild(i) ?: continue
+                walk(c, depth + 1)
+                c.recycleCompat()
+                if (found) return
+            }
+        }
+        walk(root, 0)
+        return found
     }
 
     private fun settingsPageTargetsAppWall(): Boolean {
@@ -246,18 +595,23 @@ class AppWallAccessibilityService : AccessibilityService() {
     override fun onInterrupt() {}
 
     override fun onUnbind(intent: Intent?): Boolean {
+        Log.i(TAG, "unbound (enforcing=${enforcing?.host})")
         _connected.value = false
+        stateJob?.cancel(); stateJob = null
+        mainHandler.removeCallbacksAndMessages(null)
+        enforcing = null
         endSiteSession(System.currentTimeMillis())
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         _connected.value = false
+        stateJob?.cancel(); stateJob = null
         super.onDestroy()
     }
 
     @Suppress("DEPRECATION")
     private fun AccessibilityNodeInfo.recycleCompat() {
-        if (android.os.Build.VERSION.SDK_INT < 33) runCatching { recycle() }
+        if (Build.VERSION.SDK_INT < 33) runCatching { recycle() }
     }
 }

@@ -1,6 +1,6 @@
 # AppWall Privacy Policy
 
-**Effective date: 24 September 2026**
+**Effective date: 27 September 2026**
 
 AppWall is a free, open-source app and website blocker for Android, published by Md Shakib. This policy explains what the app does with information on your device. The short version: **AppWall does not collect, store off-device, share, or sell any personal data. There is no server, no account, no analytics, and no advertising.**
 
@@ -11,7 +11,7 @@ AppWall keeps the following in its private app storage on your phone only:
 - The apps and websites you choose to block, and their schedules.
 - Focus Mode start and end times.
 - A log of blocked attempts (which blocked item, and when) and time spent on websites, used for the Insights screen.
-- Your settings (theme, whether the website filter is on).
+- Your settings (theme, Focus Mode guard).
 
 This data never leaves your device. Cloud backup and device-to-device transfer are disabled for the app. Uninstalling AppWall deletes all of it.
 
@@ -19,13 +19,12 @@ This data never leaves your device. Cloud backup and device-to-device transfer a
 
 | Permission | Use |
 |---|---|
-| Accessibility service | To know which app is in the foreground so a blocked app can be closed and the Blocked screen shown, and to read the address bar of web browsers so the app can count blocked attempts and measure time per website for your own statistics. It does not read, record, or transmit keystrokes, messages, passwords, or page content. |
+| Accessibility service | To know which app is in the foreground so a blocked app can be closed and the Blocked screen shown, and to read the address shown in a web browser's address bar so a blocked website can be stopped from loading and time per website can be measured for your own statistics. It does not read, record, or transmit keystrokes, messages, passwords, or page content. |
 | Display over other apps | To show the Blocked screen on top of a blocked app. |
-| VPN (VpnService) | To run a local, on-device DNS filter that makes blocked websites fail to load. Only DNS name lookups pass through it. Blocked names are answered on the device; all other lookups are forwarded unchanged to the DNS resolver your network already uses. No traffic is routed, inspected, logged, or sent to any other server. |
 | Usage access | To show screen-time statistics on the Insights screen. Read on demand, never stored elsewhere. |
 | Query all packages | To list your installed apps so you can choose which to block. |
-| Internet | Required by Android for the DNS filter to forward lookups to your network's resolver. AppWall contacts no other host. |
-| Notifications | For the silent status notification Android requires while the DNS filter runs. |
+
+AppWall does **not** request the Internet permission. Android therefore prevents the app from opening any network connection at all.
 
 ## Data sharing
 

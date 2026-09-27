@@ -18,7 +18,6 @@ class Prefs(private val context: Context) {
     private object K {
         val onboardingDone = booleanPreferencesKey("onboarding_done")
         val themeMode = stringPreferencesKey("theme_mode")
-        val dnsFilter = booleanPreferencesKey("dns_filter_enabled")
         val installedAt = longPreferencesKey("installed_at")
         val settingsGuard = booleanPreferencesKey("settings_guard")
     }
@@ -27,15 +26,12 @@ class Prefs(private val context: Context) {
     val themeMode: Flow<ThemeMode> = context.dataStore.data.map {
         runCatching { ThemeMode.valueOf(it[K.themeMode] ?: "SYSTEM") }.getOrDefault(ThemeMode.SYSTEM)
     }
-    /** The DNS-level website filter (Android calls it a VPN). This is how websites are blocked; default on. */
-    val dnsFilterEnabled: Flow<Boolean> = context.dataStore.data.map { it[K.dnsFilter] ?: true }
     val installedAt: Flow<Long> = context.dataStore.data.map { it[K.installedAt] ?: 0L }
     /** During Focus Mode, keep the user out of AppWall's own system-settings pages. Default on. */
     val settingsGuard: Flow<Boolean> = context.dataStore.data.map { it[K.settingsGuard] ?: true }
 
     suspend fun setOnboardingDone(done: Boolean) = context.dataStore.edit { it[K.onboardingDone] = done }
     suspend fun setThemeMode(mode: ThemeMode) = context.dataStore.edit { it[K.themeMode] = mode.name }
-    suspend fun setDnsFilterEnabled(enabled: Boolean) = context.dataStore.edit { it[K.dnsFilter] = enabled }
     suspend fun setSettingsGuard(enabled: Boolean) = context.dataStore.edit { it[K.settingsGuard] = enabled }
     suspend fun ensureInstalledAt(now: Long) = context.dataStore.edit { if (it[K.installedAt] == null) it[K.installedAt] = now }
 }

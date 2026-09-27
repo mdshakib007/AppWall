@@ -4,7 +4,7 @@ import io.github.mdshakib007.appwall.data.db.BlockItem
 import io.github.mdshakib007.appwall.data.db.FocusSession
 
 /**
- * Immutable snapshot the services read synchronously on hot paths (every accessibility event, every DNS query).
+ * Immutable snapshot the services read synchronously on hot paths (every accessibility event).
  * Rebuilt whenever items / focus change or the minute ticks over.
  */
 class BlockState(

@@ -22,11 +22,10 @@ class BlockedActivity : ComponentActivity() {
 
     companion object {
         private const val EXTRA_ITEM_ID = "item_id"
-        private const val EXTRA_HOST = "host"
         private const val EXTRA_PROTECTED = "protected"
 
-        fun show(context: Context, item: BlockItem, host: String?) {
-            context.startActivity(intent(context).putExtra(EXTRA_ITEM_ID, item.id).putExtra(EXTRA_HOST, host))
+        fun show(context: Context, item: BlockItem) {
+            context.startActivity(intent(context).putExtra(EXTRA_ITEM_ID, item.id))
         }
 
         fun showProtected(context: Context) {
@@ -52,24 +51,22 @@ class BlockedActivity : ComponentActivity() {
 
     private fun render(intent: Intent) {
         val itemId = intent.getLongExtra(EXTRA_ITEM_ID, -1L)
-        val host = intent.getStringExtra(EXTRA_HOST)
         val protected = intent.getBooleanExtra(EXTRA_PROTECTED, false)
         setContent {
             val mode by Graph.prefs.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
             AppWallTheme(mode) {
                 BackHandler { goHome() }
-                Screen(itemId, host, protected)
+                Screen(itemId, protected)
             }
         }
     }
 
     @Composable
-    private fun Screen(itemId: Long, host: String?, protected: Boolean) {
+    private fun Screen(itemId: Long, protected: Boolean) {
         val state by Graph.engine.stateFlow.collectAsState()
         val item = state.items.firstOrNull { it.id == itemId }
         BlockedScreen(
             item = item,
-            host = host,
             protectedMode = protected,
             focus = state.focus,
             onGoHome = ::goHome,

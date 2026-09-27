@@ -87,7 +87,6 @@ fun HomeScreen(
     val context = LocalContext.current
     val state by Graph.engine.stateFlow.collectAsState()
     val perms by rememberPermissionStatus()
-    val dnsWanted by Graph.prefs.dnsFilterEnabled.collectAsState(initial = false)
     var showA11yDisclosure by remember { mutableStateOf(false) }
     if (showA11yDisclosure) AccessibilityDisclosureDialog(onDismiss = { showA11yDisclosure = false })
     val now = state.now.takeIf { it > 0 } ?: System.currentTimeMillis()
@@ -133,29 +132,13 @@ fun HomeScreen(
             item {
                 if (!perms.accessibility || !perms.overlay) {
                     WarningCard(
-                        title = "App blocking is off",
-                        body = if (!perms.accessibility) "Turn on the AppWall accessibility service so apps can be blocked."
+                        title = "Blocking is off",
+                        body = if (!perms.accessibility) "Turn on the AppWall accessibility service so apps and websites can be blocked."
                         else "Allow AppWall to display over other apps to show the Blocked screen.",
                         action = "Fix now",
                         onClick = {
                             if (!perms.accessibility) showA11yDisclosure = true else context.startActivity(Permissions.overlayIntent(context))
                         },
-                    )
-                } else if (sites.isNotEmpty() && !perms.vpnRunning) {
-                    WarningCard(
-                        title = "Website blocking is off",
-                        body = if (!dnsWanted) "Turn the website filter back on in Settings; sites are not blocked while it's off."
-                        else if (!perms.vpnConsent) "Website blocking needs a one-time approval. Tap to set it up."
-                        else "The filter isn't running. Open Settings to start it again.",
-                        action = "Fix now",
-                        onClick = onOpenSettings,
-                    )
-                } else if (sites.isNotEmpty() && dnsWanted && perms.privateDnsStrict) {
-                    WarningCard(
-                        title = "Private DNS is set to a custom provider",
-                        body = "Android will send website lookups straight to that provider, bypassing AppWall's filter in some apps. Set Private DNS to Automatic or Off.",
-                        action = "Open settings",
-                        onClick = { context.startActivity(Permissions.privateDnsIntent()) },
                     )
                 }
             }

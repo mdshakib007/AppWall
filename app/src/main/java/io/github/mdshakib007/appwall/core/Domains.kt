@@ -57,6 +57,30 @@ object Domains {
         return host
     }
 
+    /**
+     * Like [hostFromAddressBar] but for the title strip of an in-app browser, which often decorates the host
+     * with a lock glyph or similar ("🔒 m.facebook.com", "· facebook.com"). Leading/trailing non-URL characters
+     * are dropped; anything that still contains whitespace (a title, a chat message) is rejected.
+     */
+    fun hostFromToolbarText(text: String): String? {
+        val t = text.trim().trimStart { !(it.isLetterOrDigit()) }.trimEnd { !(it.isLetterOrDigit() || it == '/') }
+        return hostFromAddressBar(t)
+    }
+
+    /**
+     * For address bars that only expose their URL through an accessibility description that also carries a label,
+     * e.g. Firefox's Compose toolbar: " duckduckgo.com. Search or enter address". Returns the first whitespace-
+     * separated token that is a host / URL. Only used on nodes already identified as the address bar.
+     */
+    fun hostFromAddressBarDescription(description: String): String? {
+        for (raw in description.split(' ', '\n', '\t')) {
+            val token = raw.trim().trimEnd('.', ',', ';', ':')
+            if (token.length < 4 || !token.contains('.')) continue
+            hostFromAddressBar(token)?.let { return it }
+        }
+        return null
+    }
+
     /** "facebook.com" -> "Facebook", "m.youtube.com" -> "Youtube". Purely cosmetic. */
     fun prettyName(domain: String): String {
         val core = domain.split('.').let { parts ->

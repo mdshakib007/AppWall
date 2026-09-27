@@ -120,8 +120,9 @@ object Catalog {
     )
 
     /**
-     * Browsers we can read the address bar of. Value = resource id of the URL field.
-     * Unknown browsers fall back to a heuristic (any node whose text looks like a URL).
+     * Browsers we can read the address bar of. Value = resource ids of the field that shows the current URL
+     * (several, because browsers rename them across versions). Ids without a package prefix are Compose test
+     * tags. Browsers not listed here fall back to a heuristic (a URL-looking field along the top or bottom edge).
      */
     val browserUrlBarIds: Map<String, List<String>> = mapOf(
         "com.android.chrome" to listOf("com.android.chrome:id/url_bar"),
@@ -129,10 +130,11 @@ object Catalog {
         "com.chrome.dev" to listOf("com.chrome.dev:id/url_bar"),
         "com.chrome.canary" to listOf("com.chrome.canary:id/url_bar"),
         "org.chromium.chrome" to listOf("org.chromium.chrome:id/url_bar"),
-        "org.mozilla.firefox" to listOf("org.mozilla.firefox:id/mozac_browser_toolbar_url_view", "org.mozilla.firefox:id/url_bar_title"),
-        "org.mozilla.firefox_beta" to listOf("org.mozilla.firefox_beta:id/mozac_browser_toolbar_url_view"),
-        "org.mozilla.fenix" to listOf("org.mozilla.fenix:id/mozac_browser_toolbar_url_view"),
-        "org.mozilla.focus" to listOf("org.mozilla.focus:id/mozac_browser_toolbar_url_view", "org.mozilla.focus:id/display_url"),
+        // Firefox 15x: Compose toolbar, the URL box is a test tag; older: the classic mozac toolbar view.
+        "org.mozilla.firefox" to listOf("ADDRESSBAR_URL_BOX", "org.mozilla.firefox:id/mozac_browser_toolbar_url_view"),
+        "org.mozilla.firefox_beta" to listOf("ADDRESSBAR_URL_BOX", "org.mozilla.firefox_beta:id/mozac_browser_toolbar_url_view"),
+        "org.mozilla.fenix" to listOf("ADDRESSBAR_URL_BOX", "org.mozilla.fenix:id/mozac_browser_toolbar_url_view"),
+        "org.mozilla.focus" to listOf("ADDRESSBAR_URL_BOX", "org.mozilla.focus:id/mozac_browser_toolbar_url_view", "org.mozilla.focus:id/display_url"),
         "com.brave.browser" to listOf("com.brave.browser:id/url_bar"),
         "com.microsoft.emmx" to listOf("com.microsoft.emmx:id/url_bar"),
         "com.opera.browser" to listOf("com.opera.browser:id/url_field"),
@@ -152,8 +154,8 @@ object Catalog {
         "com.cloudmosa.puffinFree" to listOf("com.cloudmosa.puffinFree:id/url_bar"),
         "com.nhn.android.search" to listOf("com.nhn.android.search:id/url"),
         "com.sec.android.app.sbrowser.beta" to listOf("com.sec.android.app.sbrowser.beta:id/location_bar_edit_text"),
-        "org.torproject.torbrowser" to listOf("org.torproject.torbrowser:id/mozac_browser_toolbar_url_view"),
-        "com.qwant.liberty" to listOf("com.qwant.liberty:id/mozac_browser_toolbar_url_view"),
+        "org.torproject.torbrowser" to listOf("ADDRESSBAR_URL_BOX", "org.torproject.torbrowser:id/mozac_browser_toolbar_url_view"),
+        "com.qwant.liberty" to listOf("ADDRESSBAR_URL_BOX", "com.qwant.liberty:id/mozac_browser_toolbar_url_view"),
         "com.kiwibrowser.browser.dev" to listOf("com.kiwibrowser.browser.dev:id/url_bar"),
     )
 

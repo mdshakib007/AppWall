@@ -36,7 +36,7 @@ After installing, if the accessibility toggle is greyed out with a "Restricted s
 
 - **Block apps.** Pick from installed apps; AppWall suggests the usual time-eaters it finds on your phone.
 - **Block websites.** Type a domain, or tap popular sites grouped by category. Blocking `facebook.com` also blocks `m.facebook.com`, `bd.facebook.com` and every other subdomain.
-- **Every browser, every in-app browser.** Blocking happens at the name-lookup level on the phone, so a blocked site simply fails to load in Chrome, Firefox, Brave, Edge, Opera, Samsung Internet and the rest, and inside the built-in browsers of apps like Messenger, Facebook, Instagram and Telegram. Your browser is never hijacked: you can still type, edit and navigate freely.
+- **Every browser, no VPN.** AppWall reads the browser's address bar. The moment a blocked address is committed, whether typed and entered, tapped in a link, or restored with the session, the navigation is cancelled before the page shows. Nothing is drawn over the browser and nothing happens while you are still typing, so the address bar stays entirely yours. Works in Chrome, Firefox, Brave, Edge, Opera, Samsung Internet, DuckDuckGo, Vivaldi and more, in Chrome Custom Tabs, and best-effort inside the in-app browsers of apps like Messenger and Facebook.
 - **Schedules.** Forever, 1 hour to 1 year, a specific date, or daily time windows on chosen weekdays (windows can cross midnight). Edit any time.
 - **Focus Mode.** A one-way commitment: choose a number of days and every block is locked for that period. You can add more, but nothing can be edited or removed, and AppWall keeps you out of its own system-settings pages so there is no quick escape hatch.
 - **Insights.** Screen time today and this week, top apps, top websites, attempts blocked, and an honest estimate of the time you got back, with the formula explained in the app.
@@ -47,30 +47,31 @@ After installing, if the accessibility toggle is greyed out with a "Restricted s
 
 | Layer | Mechanism | Covers |
 |---|---|---|
-| Apps | An accessibility service notices which app comes to the front and shows the *Blocked* screen over it. | Every app |
-| Websites | A local, DNS-only `VpnService`. Only name lookups pass through it. Blocked names get *NXDOMAIN*, so the page fails to load; everything else is handed to Android's own resolver unchanged. | Every browser, every in-app browser, every app |
+| Apps | The accessibility service notices which app comes to the front, sends it home and shows the *Blocked* screen. | Every app |
+| Websites | The same service reads the address bar of the browser in front. When it shows a blocked address (and is not being edited), AppWall presses *Back*, which cancels a navigation that is still loading or returns an open page to the previous one. It checks again a moment later and repeats if needed. | Every browser with a readable address bar, Chrome Custom Tabs, in-app browsers that show the site's address |
 
-The DNS filter uses Android's VPN slot, so it can't run alongside another VPN. It never sees, routes or logs any traffic other than DNS lookups, and it never contacts any host other than the resolver your network already uses. The accessibility service only *reads* the browser address bar, for statistics; it never interrupts browsing.
+Two details worth knowing:
+
+- If *Back* leaves a browser minimised with the blocked tab still current (typically a restored session), the next launch would show that tab and bounce again. AppWall notices this and reopens the browser on a blank tab so it stays usable. Browsers don't let other apps close their tabs, so the blocked tab stays in the tab list, just never in front.
+- This is the same approach BlockSite and similar apps use, and it shares their one limit: a page reached through a link can appear for a fraction of a second before it is cancelled, because browsers only reveal a link's destination once the navigation has started. Typed addresses are cancelled before anything loads.
 
 ## Privacy, and how to verify it
 
 - **No server, no account, no analytics, no crash reporting, no third-party SDKs.**
+- **No network permission.** AppWall does not declare `android.permission.INTERNET`, so the operating system itself makes it impossible for the app to send anything anywhere. Check *Settings › Apps › AppWall › Permissions* on your phone.
 - **Backups are disabled.** Your blocklist and statistics live in the app's private storage and are deleted on uninstall.
-- **One network permission, one reason.** Android will not forward DNS lookups on an app's behalf without the `INTERNET` permission. That is the only thing AppWall uses it for. The only code that touches the network is [`DnsFilterVpnService.kt`](app/src/main/java/io/github/mdshakib007/appwall/service/DnsFilterVpnService.kt). Turn the website filter off in Settings and the app makes no network requests at all.
-- **The accessibility service** looks at two things: which package is in front, and the address bar of browsers (for statistics only). It never interrupts your browser and never records keystrokes, messages or page content. It is [one short file](app/src/main/java/io/github/mdshakib007/appwall/service/AppWallAccessibilityService.kt).
+- **The accessibility service** looks at two things: which package is in front, and the address a browser is showing. It never reads page content, messages or what you type. It is [one file](app/src/main/java/io/github/mdshakib007/appwall/service/AppWallAccessibilityService.kt).
 - **Usage access** is optional and only powers the Insights tab.
 
 ### Permissions
 
 | Permission | Why |
 |---|---|
-| Accessibility service | See the foreground app and the browser address bar. Required for blocking. |
+| Accessibility service | See the foreground app and the browser's address bar. Required for blocking apps and websites. |
 | Display over other apps | Show the *Blocked* screen on top of a blocked app. Required. |
-| VPN (website filter) | On-device DNS filter that makes blocked sites fail to load everywhere. Required for website blocking. |
 | Usage access | Screen-time insights. Optional. |
-| Notifications | Android requires a silent status notification while the DNS filter runs. |
 
-Known limit: if Private DNS is set to a specific provider in Android's network settings, Android sends lookups straight to that provider and the DNS layer can't see them. AppWall detects this and shows a warning.
+Known limits: a browser whose address bar AppWall cannot read (an unusual or brand-new one) falls back to a heuristic and may not be covered; in-app browsers are covered only when they display the site's address in their toolbar; and, as with every non-VPN blocker, a page opened from a link can flash briefly before it is cancelled.
 
 ## Building from source
 
@@ -78,7 +79,7 @@ Requirements: JDK 17 and the Android SDK (platform 36). Then:
 
 ```bash
 ./gradlew :app:assembleDebug        # debug APK  -> app/build/outputs/apk/debug/
-./gradlew :app:testDebugUnitTest    # unit tests: domain matching, schedules, DNS codec
+./gradlew :app:testDebugUnitTest    # unit tests: domain matching, address-bar parsing, schedules
 ./gradlew :app:assembleRelease      # minified release APK (debug-signed unless a keystore is configured)
 ```
 
@@ -114,9 +115,9 @@ Until the secrets exist, release builds are signed with a throwaway debug key, w
 
 ```
 app/src/main/java/io/github/mdshakib007/appwall/
-├── core/      pure logic: domain matching, schedule rules, DNS codec, block state, savings model
+├── core/      pure logic: domain matching, address-bar parsing, schedule rules, block state, savings model
 ├── data/      Room database, DataStore prefs, usage stats, installed apps, curated catalogs
-├── service/   accessibility service, DNS-filter VpnService, boot receiver
+├── service/   the accessibility service (all enforcement lives here)
 └── ui/        Jetpack Compose screens and the shared design components
 ```
 
@@ -126,11 +127,11 @@ Stack: Kotlin, Jetpack Compose, Material 3, Room, DataStore, Coroutines. No othe
 
 Issues and pull requests are welcome. Easy wins:
 
-- Add the address-bar view id of a browser that is missing from `Catalog.browserUrlBarIds`.
+- Add the address-bar view id (or Compose test tag) of a browser that is missing from `Catalog.browserUrlBarIds`.
 - Add popular sites or apps to `Catalog.kt`.
 - Translations.
 
-Please keep the two promises that define this project: **no network calls except DNS forwarding, and no third-party SDKs.**
+Please keep the two promises that define this project: **no network permission, and no third-party SDKs.**
 
 ## Privacy policy
 

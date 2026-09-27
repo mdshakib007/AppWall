@@ -55,7 +55,6 @@ import io.github.mdshakib007.appwall.ui.theme.LocalIsDark
 @Composable
 fun BlockedScreen(
     item: BlockItem?,
-    host: String?,
     protectedMode: Boolean,
     focus: FocusSession?,
     onGoHome: () -> Unit,
@@ -87,7 +86,6 @@ fun BlockedScreen(
             Text(
                 when {
                     protectedMode -> "You committed to a focus period. AppWall's settings stay locked until it ends."
-                    item?.type == BlockType.WEBSITE -> "This website is on your blocklist, including all of its subdomains."
                     else -> "This app is on your blocklist. You chose this, and you can do it."
                 },
                 style = MaterialTheme.typography.bodyLarge, textAlign = TextAlign.Center,

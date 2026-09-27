@@ -66,7 +66,7 @@ class BlockRepository(private val db: AppWallDatabase, private val usage: UsageP
 
     /**
      * Records one "you tried to open this" event. [minGapMs] debounces: the accessibility service fires several
-     * events per second for one open, and the DNS layer sees endless background retries that are not attempts.
+     * events per second for one open.
      */
     suspend fun recordAttempt(item: BlockItem, now: Long = System.currentTimeMillis(), minGapMs: Long = 3_000) {
         val last = db.attempts().lastAttemptAt(item.type, item.key)

@@ -20,10 +20,10 @@ fun AccessibilityDisclosureDialog(onDismiss: () -> Unit) {
         text = {
             Text(
                 "AppWall uses Android's Accessibility API to detect which app is in the foreground, so it can close a " +
-                    "blocked app and show the Blocked screen, and to read the address bar of web browsers to count blocked " +
-                    "attempts and measure time per website for your own statistics.\n\n" +
+                    "blocked app and show the Blocked screen, and to read the address shown in a browser's address bar, so it " +
+                    "can stop a blocked website from loading and measure time per website for your own statistics.\n\n" +
                     "It does not read, store or transmit what you type, your messages, passwords or page content. " +
-                    "Nothing leaves your device; AppWall has no server and no account.",
+                    "Nothing leaves your device: AppWall has no network permission, no server and no account.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         },

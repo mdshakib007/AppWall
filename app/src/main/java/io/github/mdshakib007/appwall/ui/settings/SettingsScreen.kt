@@ -2,11 +2,8 @@
 
 package io.github.mdshakib007.appwall.ui.settings
 
-import android.app.Activity
 import android.content.Intent
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -51,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import io.github.mdshakib007.appwall.BuildConfig
 import io.github.mdshakib007.appwall.Graph
 import io.github.mdshakib007.appwall.R
-import io.github.mdshakib007.appwall.service.DnsFilterVpnService
 import io.github.mdshakib007.appwall.ui.common.AppTopBar
 import io.github.mdshakib007.appwall.ui.common.AccessibilityDisclosureDialog
 import io.github.mdshakib007.appwall.ui.common.BigButton
@@ -76,17 +72,10 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onPrivacy: () -> Uni
     val scope = rememberCoroutineScope()
     val perms by rememberPermissionStatus()
     val theme by Graph.prefs.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
-    val dnsWanted by Graph.prefs.dnsFilterEnabled.collectAsState(initial = true)
     val guard by Graph.prefs.settingsGuard.collectAsState(initial = true)
-    val vpnRunning by DnsFilterVpnService.running.collectAsState()
-    val revoked by DnsFilterVpnService.revoked.collectAsState()
     val state by Graph.engine.stateFlow.collectAsState()
-    val notifLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {}
     var showA11yDisclosure by remember { mutableStateOf(false) }
     if (showA11yDisclosure) AccessibilityDisclosureDialog(onDismiss = { showA11yDisclosure = false })
-    val vpnLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == Activity.RESULT_OK) { scope.launch { Graph.prefs.setDnsFilterEnabled(true) }; DnsFilterVpnService.start(context) }
-    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -107,53 +96,16 @@ fun SettingsScreen(onBack: () -> Unit, onAbout: () -> Unit, onPrivacy: () -> Uni
             )
 
             SectionHeader("Protection")
-            PermRow("Accessibility service", "Required for app blocking", perms.accessibility) { showA11yDisclosure = true }
+            PermRow("Accessibility service", "Required: blocks apps and websites", perms.accessibility) { showA11yDisclosure = true }
             PermRow("Display over other apps", "Shows the Blocked screen", perms.overlay) { context.startActivity(Permissions.overlayIntent(context)) }
             PermRow("Usage access", "Screen-time insights", perms.usage) { context.startActivity(Permissions.usageIntent()) }
-            Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Website blocking (DNS filter)", style = MaterialTheme.typography.bodyLarge)
-                    Text(
-                        when {
-                            state.focusActive && dnsWanted -> "Locked on by Focus Mode"
-                            revoked -> "Stopped: another VPN took over. Turn it back on to re-enable."
-                            vpnRunning -> "On · blocked sites fail to load in every browser and app. Uses Android's VPN slot; no traffic leaves through it."
-                            dnsWanted -> "Starting…"
-                            else -> "Off · websites are NOT blocked while this is off."
-                        },
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Switch(
-                    checked = dnsWanted && vpnRunning,
-                    enabled = !(state.focusActive && dnsWanted),
-                    onCheckedChange = { on ->
-                        if (on) {
-                            if (android.os.Build.VERSION.SDK_INT >= 33 && !perms.notifications) notifLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                            val consent = Permissions.vpnConsentIntent(context)
-                            if (consent != null) vpnLauncher.launch(consent) else { scope.launch { Graph.prefs.setDnsFilterEnabled(true) }; DnsFilterVpnService.start(context) }
-                        } else {
-                            scope.launch { Graph.prefs.setDnsFilterEnabled(false) }
-                            DnsFilterVpnService.stop(context)
-                        }
-                    },
-                )
-            }
-            if (perms.privateDnsStrict) {
-                SurfaceCard(Modifier.padding(horizontal = 20.dp, vertical = 4.dp).fillMaxWidth(), containerColor = MaterialTheme.colorScheme.errorContainer, onClick = { context.startActivity(Permissions.privateDnsIntent()) }) {
-                    Text(
-                        "Private DNS is set to a custom provider, which can bypass the website filter in some apps. Set it to Automatic or Off in Network settings.",
-                        Modifier.padding(14.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                }
-            }
 
             SectionHeader("Focus Mode")
             Row(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Guard AppWall's settings pages", style = MaterialTheme.typography.bodyLarge)
                     Text(
-                        "While Focus Mode is on, AppWall closes system pages that could disable it (accessibility, app info, VPN).",
+                        "While Focus Mode is on, AppWall closes system pages that could disable it (accessibility, app info).",
                         style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
@@ -261,10 +213,10 @@ fun PrivacyScreen(onBack: () -> Unit) {
             Text("Nothing leaves your phone. Here's how you can check.", style = MaterialTheme.typography.headlineSmall)
             Spacer(Modifier.height(16.dp))
             Point("No server, no account", "There is nothing to sign in to and nowhere to sync. Your blocklist, schedules and statistics live in a small database inside the app's private storage.")
-            Point("The one network permission, explained", "AppWall holds the INTERNET permission for a single reason: the website filter must pass lookups that are not blocked on to the DNS resolver your network already uses, and Android refuses to do even that without it. That code lives in one file, DnsFilterVpnService.kt, and nothing else in the app touches the network. It never contacts any other host.")
+            Point("No network permission at all", "AppWall does not hold Android's INTERNET permission, so it is technically impossible for it to send anything anywhere. You can verify this in Settings › Apps › AppWall › Permissions, or in the source code.")
             Point("Uninstall means gone", "Backups are disabled. Remove the app and everything it stored is deleted with it.")
-            Point("What the accessibility service sees", "Which app is in front (to block apps), and the address bar of browsers (only to count attempts and measure time per site). It never interrupts your browser, never records keystrokes, messages or page content. The source is public; the whole service is one short file.")
-            Point("How websites are blocked", "A local DNS filter answers lookups for blocked names with \"does not exist\", so the page fails to load in any browser or app, and hands every other lookup to Android's own resolver unchanged. Android calls it a VPN, but only name lookups pass through it. No other traffic touches it, and nothing is logged.")
+            Point("What the accessibility service sees", "Which app is in front (to block apps), and the address of the page a browser is showing (to block websites and measure time per site). It never reads page content, messages or what you type. The source is public; the whole service is one file.")
+            Point("How websites are blocked", "When a browser commits to a blocked address, whether typed or reached through a link, AppWall cancels the navigation before the page loads and shows the Blocked screen. Nothing happens while you are still typing in the address bar.")
             Point("What usage access is for", "It powers the Insights tab: how long apps were on screen. Durations only, computed on demand, never stored anywhere else.")
             Spacer(Modifier.height(24.dp))
         }

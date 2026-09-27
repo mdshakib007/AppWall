@@ -7,10 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import android.net.VpnService
-import io.github.mdshakib007.appwall.service.DnsFilterVpnService
 import io.github.mdshakib007.appwall.ui.AppRoot
-import kotlinx.coroutines.launch
 import io.github.mdshakib007.appwall.ui.theme.AppWallTheme
 import io.github.mdshakib007.appwall.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.first
@@ -28,21 +25,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             val mode by Graph.prefs.themeMode.collectAsState(initial = ThemeMode.SYSTEM)
             AppWallTheme(mode) { AppRoot(onboardingDone) }
-        }
-    }
-
-    override fun onResume() {
-        super.onResume()
-        // If the process was killed (task manager, force stop, low memory) the DNS filter is gone until the next
-        // reboot. Bring it back whenever the user opens the app, as long as they want it and consent still stands.
-        Graph.scope.launch {
-            val wanted = Graph.prefs.dnsFilterEnabled.first()
-            val running = DnsFilterVpnService.running.value
-            if (wanted && !running && VpnService.prepare(this@MainActivity) == null) {
-                DnsFilterVpnService.start(this@MainActivity)
-            } else if (!wanted && running) {
-                DnsFilterVpnService.stop(this@MainActivity) // setting is off (or was reset to the new default): don't keep the VPN slot
-            }
         }
     }
 }
