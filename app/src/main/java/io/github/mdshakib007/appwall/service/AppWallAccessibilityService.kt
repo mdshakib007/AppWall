@@ -72,6 +72,8 @@ class AppWallAccessibilityService : AccessibilityService() {
         private const val STRIP_FRACTION = 0.30f
         /** An in-app browser's web view must cover at least this much of the screen height. */
         private const val MIN_WEBVIEW_FRACTION = 0.35f
+        /** Bundle keys under which Chromium exposes a web node's document URL / link target. */
+        private val WEB_URL_EXTRA_KEYS = listOf("AccessibilityNodeInfo.url", "AccessibilityNodeInfo.targetUrl")
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -267,15 +269,88 @@ class AppWallAccessibilityService : AccessibilityService() {
         if (state.blockedDomains.isEmpty()) return
         val root = windowRootFor(pkg) ?: return
         try {
-            val found = findHostInTopStrip(root) ?: return
-            val item = state.blockedItemForHost(found.host) ?: return
-            // A bare host in the title strip is only an in-app browser if a big web view sits below it.
-            // (A link pasted in a chat, or a post caption, never comes with one.)
-            if (!hasLargeWebViewBelow(root, found.top)) return
-            startEnforcement(pkg, item, found.host, inApp = true)
+            val host = detectInAppHost(root) ?: return
+            val item = state.blockedItemForHost(host) ?: return
+            startEnforcement(pkg, item, host, inApp = true)
         } finally {
             root.recycleCompat()
         }
+    }
+
+    /**
+     * Which site an in-app browser in this window is showing, or null if there is none.
+     *  a) a bare host in the title strip with a big web view under it (most in-app browsers), or
+     *  b) for browsers that hide their address from accessibility (Facebook's / Messenger's), the URL the web
+     *     content itself reports: Chromium attaches the document URL and link targets to web nodes as extras.
+     * A link pasted in a chat, or a post caption, never comes with a big web view, so neither path fires there.
+     */
+    private fun detectInAppHost(root: AccessibilityNodeInfo): String? {
+        findHostInTopStrip(root)?.let { hit ->
+            if (hasLargeWebViewBelow(root, hit.top)) return hit.host
+        }
+        val webView = findLargeWebView(root) ?: return null
+        try {
+            return hostFromWebContent(webView)
+        } finally {
+            webView.recycleCompat()
+        }
+    }
+
+    private fun findLargeWebView(root: AccessibilityNodeInfo): AccessibilityNodeInfo? {
+        val minHeight = (screenHeight * MIN_WEBVIEW_FRACTION).toInt()
+        var found: AccessibilityNodeInfo? = null
+        val budget = intArrayOf(600)
+        fun walk(node: AccessibilityNodeInfo, depth: Int) {
+            if (found != null || depth > 22 || --budget[0] < 0) return
+            if (isWebView(node)) {
+                node.getBoundsInScreen(rect)
+                if (rect.height() >= minHeight) found = AccessibilityNodeInfo.obtain(node)
+                return
+            }
+            for (i in 0 until minOf(node.childCount, 60)) {
+                val c = node.getChild(i) ?: continue
+                walk(c, depth + 1)
+                c.recycleCompat()
+                if (found != null) return
+            }
+        }
+        walk(root, 0)
+        return found
+    }
+
+    /**
+     * Reads the site out of Chromium web content: the document URL if the root web node carries one, otherwise
+     * the host that most absolute link targets on the page point to (at least 3 links and a clear majority).
+     */
+    private fun hostFromWebContent(webView: AccessibilityNodeInfo): String? {
+        val counts = HashMap<String, Int>()
+        var total = 0
+        var documentHost: String? = null
+        val budget = intArrayOf(160)
+        val diag = StringBuilder()
+        fun walk(node: AccessibilityNodeInfo, depth: Int) {
+            if (documentHost != null || depth > 14 || --budget[0] < 0) return
+            val extras = node.extras
+            if (depth <= 2 && diag.length < 600) diag.append(depth).append(':').append(extras.keySet().joinToString(",")).append(' ')
+            for (key in WEB_URL_EXTRA_KEYS) {
+                val value = extras.getCharSequence(key)?.toString() ?: continue
+                val host = Domains.hostFromAddressBar(value) ?: continue
+                if (depth <= 1 && key == "AccessibilityNodeInfo.url") { documentHost = host; return }
+                counts[host] = (counts[host] ?: 0) + 1
+                total++
+            }
+            for (i in 0 until minOf(node.childCount, 60)) {
+                val c = node.getChild(i) ?: continue
+                walk(c, depth + 1)
+                c.recycleCompat()
+                if (documentHost != null) return
+            }
+        }
+        walk(webView, 0)
+        Log.i(TAG, "web content: document=$documentHost links=$counts extras=[$diag]")
+        documentHost?.let { return it }
+        val best = counts.maxByOrNull { it.value } ?: return null
+        return if (best.value >= 3 && best.value * 100 >= total * 60) best.key else null
     }
 
     // --- Websites: enforcement -----------------------------------------------------------------------
@@ -339,8 +414,8 @@ class AppWallAccessibilityService : AccessibilityService() {
         val root = active
         try {
             if (e.inApp) {
-                val found = findHostInTopStrip(root) ?: return Outcome.CLEAR
-                return if (state.blockedItemForHost(found.host) != null) Outcome.BLOCKED else Outcome.CLEAR
+                val host = detectInAppHost(root) ?: return Outcome.CLEAR
+                return if (state.blockedItemForHost(host) != null) Outcome.BLOCKED else Outcome.CLEAR
             }
             val bar = readAddressBar(e.pkg, root) ?: return Outcome.CLEAR
             if (bar.editing || bar.host == null) return Outcome.CLEAR
