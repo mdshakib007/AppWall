@@ -119,7 +119,7 @@ private fun StartFocus(itemCount: Int, now: Long) {
         Text("Commit for a while", style = MaterialTheme.typography.headlineMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(8.dp))
         Text(
-            "Focus Mode locks your entire blocklist, all day, for as many days as you choose. You can add more blocks, but nothing can be edited or removed until it ends. There is no way to cancel it.",
+            "Focus Mode locks your blocklist for as many days as you choose. Every block keeps its own schedule, but nothing can be relaxed or removed until it ends, and there is no way to cancel it. You can still add more.",
             style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(24.dp))
@@ -142,7 +142,7 @@ private fun StartFocus(itemCount: Int, now: Long) {
                 Spacer(Modifier.height(4.dp))
                 Text(
                     if (itemCount == 0) "Your blocklist is empty. Add at least one app or website first."
-                    else "$apps app${if (apps == 1) "" else "s"} and $sites website${if (sites == 1) "" else "s"}, blocked around the clock until ${Format.dateTime(now + days * 24L * 3600_000)}.",
+                    else "$apps app${if (apps == 1) "" else "s"} and $sites website${if (sites == 1) "" else "s"}, each on its own schedule, locked until ${Format.dateTime(now + days * 24L * 3600_000)}.",
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
@@ -155,10 +155,10 @@ private fun StartFocus(itemCount: Int, now: Long) {
     if (confirm) {
         AlertDialog(
             onDismissRequest = { confirm = false },
-            title = { Text("Lock everything for $days days?") },
+            title = { Text("Lock your list for $days days?") },
             text = {
                 Column {
-                    Text("Until ${Format.dateTime(now + days * 24L * 3600_000)} you will not be able to unblock, edit, or remove anything. Not even by reinstalling settings. This is a one-way door.")
+                    Text("Until ${Format.dateTime(now + days * 24L * 3600_000)} you will not be able to remove or relax any block. Schedules keep running as they are. This is a one-way door.")
                     Spacer(Modifier.height(12.dp))
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { understood = !understood }) {
                         Checkbox(checked = understood, onCheckedChange = { understood = it })

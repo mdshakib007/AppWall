@@ -36,7 +36,9 @@ object BlockRules {
 
     fun hasEnded(item: BlockItem, now: Long): Boolean = item.untilAt != null && now >= item.untilAt
 
-    /** Combined verdict: focus mode blocks everything; otherwise the item's own schedule decides. */
-    fun isBlocked(item: BlockItem, focus: FocusSession?, now: Long): Boolean =
-        isFocusActive(focus, now) || isActive(item, now)
+    /**
+     * Whether this item is blocked at [now]. Focus Mode does NOT change this: it locks the list (nothing can be
+     * removed or relaxed) but every item keeps the schedule the user gave it.
+     */
+    fun isBlocked(item: BlockItem, now: Long): Boolean = isActive(item, now)
 }

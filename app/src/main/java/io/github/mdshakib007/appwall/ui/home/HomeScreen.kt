@@ -195,8 +195,8 @@ fun HomeScreen(
 
 @Composable
 private fun BlockRow(item: BlockItem, focusActive: Boolean, now: Long, onOpen: (Long) -> Unit, modifier: Modifier = Modifier) {
-    val active = focusActive || BlockRules.isActive(item, now)
-    val ended = !focusActive && BlockRules.hasEnded(item, now)
+    val active = BlockRules.isActive(item, now)
+    val ended = BlockRules.hasEnded(item, now)
     Row(
         modifier.fillMaxWidth().clickable { onOpen(item.id) }.padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -210,7 +210,7 @@ private fun BlockRow(item: BlockItem, focusActive: Boolean, now: Long, onOpen: (
                 StatusDot(active)
                 Spacer(Modifier.width(6.dp))
                 Text(
-                    if (focusActive) "Locked by Focus Mode" else if (ended) "Ended · tap to extend" else Format.schedule(item, now),
+                    if (ended) "Ended · tap to extend" else Format.schedule(item, now),
                     style = MaterialTheme.typography.bodySmall,
                     color = if (ended) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1, overflow = TextOverflow.Ellipsis,

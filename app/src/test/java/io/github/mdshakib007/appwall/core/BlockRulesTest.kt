@@ -49,11 +49,13 @@ class BlockRulesTest {
         assertFalse(BlockRules.isActive(i, at(2026, 9, 27, 2, 0), zone))   // Sun 2am belongs to Sat night (not enabled)
     }
 
-    @Test fun focusOverridesEverything() {
+    @Test fun focusLocksTheListButKeepsSchedules() {
         val focus = FocusSession(startAt = mon10 - 1, endAt = mon10 + 1000, days = 1, itemsAtStart = 1)
-        val expired = item(untilAt = mon10 - 1)
-        assertTrue(BlockRules.isBlocked(expired, focus, mon10))
-        assertFalse(BlockRules.isBlocked(expired, null, mon10))
+        assertTrue(BlockRules.isFocusActive(focus, mon10))
         assertFalse(BlockRules.isFocusActive(focus, mon10 + 1000))
+        // An ended block stays ended, and a window outside its hours stays open, even while Focus Mode is on.
+        assertFalse(BlockRules.isBlocked(item(untilAt = mon10 - 1), mon10))
+        assertFalse(BlockRules.isBlocked(item(allDay = false, start = 13 * 60, end = 14 * 60), mon10))
+        assertTrue(BlockRules.isBlocked(item(), mon10))
     }
 }

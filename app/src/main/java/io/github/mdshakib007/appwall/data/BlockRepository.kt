@@ -40,10 +40,15 @@ class BlockRepository(private val db: AppWallDatabase, private val usage: UsageP
         return item.copy(id = id)
     }
 
-    /** Update schedule. Under Focus Mode the schedule is irrelevant (everything blocked) but edits are still refused
-     *  so the user cannot pre-arrange an early escape. */
-    suspend fun updateSchedule(item: BlockItem) {
-        if (isFocusActive()) throw LockedException()
+    /**
+     * Update schedule. Under Focus Mode edits are refused so the user cannot pre-arrange an early escape, with one
+     * exception: a block that has already ended may be extended, since that only ever tightens the list.
+     */
+    suspend fun updateSchedule(item: BlockItem, now: Long = System.currentTimeMillis()) {
+        if (isFocusActive(now)) {
+            val current = db.blockItems().get(item.id)
+            if (current == null || !BlockRules.hasEnded(current, now)) throw LockedException()
+        }
         db.blockItems().update(item)
     }
 

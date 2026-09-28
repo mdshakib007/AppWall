@@ -16,12 +16,12 @@ class BlockState(
 
     /** Package names blocked right now. */
     val blockedPackages: Set<String> =
-        items.filter { it.type == io.github.mdshakib007.appwall.data.db.BlockType.APP && BlockRules.isBlocked(it, focus, now) }
+        items.filter { it.type == io.github.mdshakib007.appwall.data.db.BlockType.APP && BlockRules.isBlocked(it, now) }
             .map { it.key }.toHashSet()
 
     /** Domains blocked right now (subdomains implied). */
     val blockedDomains: List<String> =
-        items.filter { it.type == io.github.mdshakib007.appwall.data.db.BlockType.WEBSITE && BlockRules.isBlocked(it, focus, now) }
+        items.filter { it.type == io.github.mdshakib007.appwall.data.db.BlockType.WEBSITE && BlockRules.isBlocked(it, now) }
             .map { it.key }
 
     val itemByPackage: Map<String, BlockItem> =

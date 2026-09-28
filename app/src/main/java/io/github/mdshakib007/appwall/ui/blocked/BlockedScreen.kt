@@ -107,12 +107,15 @@ fun BlockedScreen(
                     )
                     Spacer(Modifier.height(12.dp))
                     val reason: Pair<String, PillTone> = when {
-                        focusActive -> "Focus Mode · ${Format.focusRemaining(focus!!, now)}" to PillTone.PRIMARY
                         item.untilAt != null -> "Blocked · ${Format.remaining(item.untilAt, now)}" to PillTone.WARNING
                         !item.allDay -> "Scheduled · ${Format.minuteOfDay(item.startMinute)}–${Format.minuteOfDay(item.endMinute)}" to PillTone.WARNING
                         else -> "Blocked permanently" to PillTone.ERROR
                     }
-                    Pill(reason.first, tone = reason.second, icon = if (focusActive) Icons.Rounded.Lock else Icons.Rounded.Schedule)
+                    Pill(reason.first, tone = reason.second, icon = Icons.Rounded.Schedule)
+                    if (focusActive) {
+                        Spacer(Modifier.height(8.dp))
+                        Pill("Locked by Focus Mode · ${Format.focusRemaining(focus!!, now)}", tone = PillTone.PRIMARY, icon = Icons.Rounded.Lock)
+                    }
                 }
             } else if (protectedMode && focus != null) {
                 Pill("Focus Mode · ${Format.focusRemaining(focus, now)}", tone = PillTone.PRIMARY, icon = Icons.Rounded.Lock)

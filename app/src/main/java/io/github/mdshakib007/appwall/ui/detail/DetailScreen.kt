@@ -116,8 +116,9 @@ fun DetailScreen(id: Long, onBack: () -> Unit) {
         },
     ) { inner ->
         if (it == null) { Box(Modifier.fillMaxSize().padding(inner)); return@Scaffold }
-        val locked = state.focusActive
-        val blockedNow = BlockRules.isBlocked(it, state.focus, now)
+        val ended = BlockRules.hasEnded(it, now)
+        val locked = state.focusActive && !ended // an ended block may be extended even under Focus Mode
+        val blockedNow = BlockRules.isBlocked(it, now)
 
         // Editable draft
         var untilChoice by remember(it.id) { mutableIntStateOf(initialChoice(it, now)) }
@@ -150,12 +151,11 @@ fun DetailScreen(id: Long, onBack: () -> Unit) {
                     Spacer(Modifier.height(6.dp))
                     Pill(
                         when {
-                            locked -> "Locked by Focus Mode"
                             blockedNow -> "Blocked right now"
-                            BlockRules.hasEnded(it, now) -> "Ended"
+                            ended -> "Ended"
                             else -> "Not active right now"
                         },
-                        tone = if (locked) PillTone.PRIMARY else if (blockedNow) PillTone.SUCCESS else PillTone.NEUTRAL,
+                        tone = if (blockedNow) PillTone.SUCCESS else PillTone.NEUTRAL,
                         icon = if (locked) Icons.Rounded.Lock else null,
                     )
                 }
@@ -169,13 +169,14 @@ fun DetailScreen(id: Long, onBack: () -> Unit) {
                 )
             }
 
-            if (locked) {
+            if (state.focusActive) {
                 SurfaceCard(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                     Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         IconTile(Icons.Rounded.Lock, size = 36.dp)
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            "Focus Mode is on until ${Format.dateTime(state.focus!!.endAt)}. Schedules can't be changed and nothing can be removed until then.",
+                            if (ended) "Focus Mode is on until ${Format.dateTime(state.focus!!.endAt)}. This block has ended; you can extend it, but not remove it."
+                            else "Focus Mode is on until ${Format.dateTime(state.focus!!.endAt)}. This block keeps its own schedule, but it can't be changed or removed until then.",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
